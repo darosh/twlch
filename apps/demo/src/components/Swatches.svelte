@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { tailwind } from "twlch";
+  import { tailwind } from "@darosh/twlch";
   import * as ToggleGroup from "$lib/components/ui/toggle-group";
   import { copy } from "$lib/copy.ts";
   import { store, swatchValue } from "$lib/store.svelte.ts";

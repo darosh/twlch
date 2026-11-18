@@ -1,8 +1,8 @@
 import Color from "colorjs.io";
-import { tailwind } from "twlch";
-import type { Family } from "twlch";
-import { twlch, twlchAnchors, twlchHue } from "twlch";
-import type { DatasetName, Interpolation, TwlchResult } from "twlch";
+import { tailwind } from "@darosh/twlch";
+import type { Family } from "@darosh/twlch";
+import { twlch, twlchAnchors, twlchHue } from "@darosh/twlch";
+import type { DatasetName, Interpolation, TwlchResult } from "@darosh/twlch";
 import { colorName, uniqueName } from "./custom.ts";
 import { oklchToHex } from "./color.ts";
 import { SPACES, convertFamilies } from "./spaces.ts";

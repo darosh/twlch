@@ -17,7 +17,7 @@ catalog:
   colorjs.io: ^0.7.1
   colornames-oklab: ^0.6.0
   mode-watcher: ^1.1.0
-  twlch: workspace:*
+  "@darosh/twlch": workspace:*
   pixi.js: ^8.23.0
   shadcn-svelte: ^1.8.1
   svelte: ^5.57.3

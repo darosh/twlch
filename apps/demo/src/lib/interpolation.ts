@@ -1,4 +1,4 @@
-import type { Interpolation } from "twlch";
+import type { Interpolation } from "@darosh/twlch";
 
 export const INTERPOLATIONS: { value: Interpolation; label: string }[] = [
   { value: "smooth", label: "smooth" },

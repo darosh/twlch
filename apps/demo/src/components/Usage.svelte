@@ -1,6 +1,6 @@
 <script lang="ts">
-  import { twlch, twlchAnchors, twlchHue } from "twlch";
-  import type { TwlchResult } from "twlch";
+  import { twlch, twlchAnchors, twlchHue } from "@darosh/twlch";
+  import type { TwlchResult } from "@darosh/twlch";
   import Code from "./Code.svelte";
   import Output from "./Output.svelte";
 
@@ -59,7 +59,7 @@
   <div class="flex flex-col gap-2">
     <h3 class="font-semibold">Generate a scale</h3>
     <Code
-      code={`import { twlch } from "twlch";
+      code={`import { twlch } from "@darosh/twlch";
 
 const { swatches } = twlch("#3b82f6");
 swatches.map((s) => s.hex);
@@ -137,7 +137,7 @@ twlch("#3b82f6", { dataset: myFamilies });`}
   <div class="flex flex-col gap-2">
     <h3 class="font-semibold">Scales without a color</h3>
     <Code
-      code={`import { twlchHue, twlchAnchors } from "twlch";
+      code={`import { twlchHue, twlchAnchors } from "@darosh/twlch";
 
 twlchHue(250);                      // the scale at hue 250° (the shade-500 hue)
 twlchHue(250, { delta: -0.2 });

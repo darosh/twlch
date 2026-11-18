@@ -14,7 +14,7 @@
     "moduleDetection": "force",
     "noEmit": true,
     "paths": {
-      "twlch": ["../../src/index.ts"],
+      "@darosh/twlch": ["../../src/index.ts"],
       "$lib": ["./src/lib"],
       "$lib/*": ["./src/lib/*"]
     },

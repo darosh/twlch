@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { tailwind } from "twlch";
+  import { tailwind } from "@darosh/twlch";
   import Color from "colorjs.io";
   import CopyIcon from "@lucide/svelte/icons/copy";
   import TrashIcon from "@lucide/svelte/icons/trash-2";
@@ -11,7 +11,7 @@
   import * as ToggleGroup from "$lib/components/ui/toggle-group";
   import { copy } from "$lib/copy.ts";
   import { INTERPOLATIONS, interpolationLabel } from "$lib/interpolation.ts";
-  import type { Interpolation } from "twlch";
+  import type { Interpolation } from "@darosh/twlch";
   import { isValidColor, store, swatchValue } from "$lib/store.svelte.ts";
 
   const def = $derived(store.selectedDef);

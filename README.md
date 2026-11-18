@@ -4,10 +4,16 @@ Tailwind scales interpolation. `twlch()` builds a 50–950 color scale from any 
 
 **Demo:** https://darosh.github.io/twlch/
 
+## Install
+
+```bash
+npm install @darosh/twlch
+```
+
 ## Usage
 
 ```ts
-import { twlch } from "twlch";
+import { twlch } from "@darosh/twlch";
 
 const { swatches } = twlch("#3b82f6");
 swatches.map((s) => s.hex);
@@ -26,17 +32,17 @@ Any color [colorjs.io](https://colorjs.io) can parse works as input. The result 
 `dist/twlch.browser.*` bundles colorjs.io (about 38 kB gzipped) for CDNs and plain pages.
 
 ```html
-<script src="https://cdn.jsdelivr.net/npm/twlch"></script>
+<script src="https://cdn.jsdelivr.net/npm/@darosh/twlch"></script>
 <script>
   twlch.twlch("#3b82f6").swatches.map((s) => s.hex);
 </script>
 
 <script type="module">
-  import { twlch } from "https://cdn.jsdelivr.net/npm/twlch/dist/twlch.browser.js";
+  import { twlch } from "https://cdn.jsdelivr.net/npm/@darosh/twlch/dist/twlch.browser.js";
 </script>
 ```
 
-With a bundler, keep using `import { twlch } from "twlch"`; colorjs.io is then shared with your app.
+With a bundler, keep using `import { twlch } from "@darosh/twlch"`; colorjs.io is then shared with your app.
 
 ### Custom shades
 
@@ -93,7 +99,7 @@ twlch("#3b82f6", { dataset: myFamilies });
 ### Scales without a color
 
 ```ts
-import { twlchHue, twlchAnchors } from "twlch";
+import { twlchHue, twlchAnchors } from "@darosh/twlch";
 
 twlchHue(250); // the scale at hue 250° (the shade-500 hue)
 twlchHue(250, { delta: -0.2 });
@@ -108,8 +114,8 @@ twlchHue((a[3] + a[4]) / 2);
 The dataset the scales are built from is exported too:
 
 ```ts
-import { tailwind } from "twlch";
-import type { Family } from "twlch";
+import { tailwind } from "@darosh/twlch";
+import type { Family } from "@darosh/twlch";
 
 tailwind.chromatic; // Family[] — { name, l[11], c[11], h[11] }
 tailwind.neutral;

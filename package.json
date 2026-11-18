@@ -1,5 +1,5 @@
 {
-  "name": "twlch",
+  "name": "@darosh/twlch",
   "version": "0.1.0",
   "description": "Tailwind scales interpolation",
   "keywords": [

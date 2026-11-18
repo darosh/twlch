@@ -1,7 +1,7 @@
 import { Container3D, FlatMaterial, Geometry3D, Mesh3D, SphereGeometry, View3D } from "@pixi/3d";
 import { OrbitCamera } from "@pixi/3d/extras";
 import { Application, Point, Text } from "pixi.js";
-import { pchip } from "twlch";
+import { pchip } from "@darosh/twlch";
 import { fmt, niceMax } from "./color.ts";
 import { sampleCurve, seriesOf } from "./plot.ts";
 import type { PlotOptions } from "./plot.ts";

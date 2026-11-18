@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { tailwind } from "twlch";
+  import { tailwind } from "@darosh/twlch";
   import { untrack } from "svelte";
   import * as Select from "$lib/components/ui/select";
   import { Switch } from "$lib/components/ui/switch";

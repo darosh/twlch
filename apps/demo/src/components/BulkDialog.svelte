@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { twlchAnchors } from "twlch";
+  import { twlchAnchors } from "@darosh/twlch";
   import { toast } from "svelte-sonner";
   import { Button } from "$lib/components/ui/button";
   import * as Dialog from "$lib/components/ui/dialog";
@@ -7,7 +7,7 @@
   import * as Select from "$lib/components/ui/select";
   import { INTERPOLATIONS, interpolationLabel } from "$lib/interpolation.ts";
   import { store } from "$lib/store.svelte.ts";
-  import type { Interpolation } from "twlch";
+  import type { Interpolation } from "@darosh/twlch";
 
   let { open = $bindable(false) }: { open: boolean } = $props();
   let n = $state("1");

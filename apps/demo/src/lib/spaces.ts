@@ -1,5 +1,5 @@
 import Color from "colorjs.io";
-import type { Family } from "twlch";
+import type { Family } from "@darosh/twlch";
 import { niceMax, oklchToHex } from "./color.ts";
 
 export type SpaceId = "oklch" | "lch" | "hct" | "jzczhz";

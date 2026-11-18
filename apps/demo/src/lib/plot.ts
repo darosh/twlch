@@ -1,7 +1,7 @@
-import { pchip } from "twlch";
+import { pchip } from "@darosh/twlch";
 import { Application, Container, Graphics, Text } from "pixi.js";
 import type { TextStyleOptions } from "pixi.js";
-import type { Family } from "twlch";
+import type { Family } from "@darosh/twlch";
 import { fmt, niceMax } from "./color.ts";
 import type { PlotFamily, SpaceInfo } from "./spaces.ts";
 

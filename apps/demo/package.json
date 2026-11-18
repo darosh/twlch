@@ -9,14 +9,14 @@
     "preview": "vp preview"
   },
   "dependencies": {
+    "@darosh/twlch": "catalog:",
     "@pixi/3d": "catalog:",
     "@sveltejs/vite-plugin-svelte": "catalog:",
     "allo-font": "catalog:",
     "colorjs.io": "catalog:",
     "colornames-oklab": "catalog:",
     "pixi.js": "catalog:",
-    "svelte": "catalog:",
-    "twlch": "catalog:"
+    "svelte": "catalog:"
   },
   "devDependencies": {
     "@fontsource-variable/geist": "catalog:",
