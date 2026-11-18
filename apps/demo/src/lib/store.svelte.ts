@@ -82,16 +82,14 @@ class Store {
 
   /** All scales sorted around the hue wheel. */
   scales = $derived.by<Scale[]>(() => {
-    const stock = tailwind[this.dataset].map(
-      (f): Scale => ({
-        id: "tw:" + f.name,
-        name: f.name,
-        kind: "tailwind",
-        family: f,
-        hex: f.l.map((_, i) => hexOf(oklchToHex(f.l[i], f.c[i], f.h[i]))),
-        hue: f.h[5],
-      }),
-    );
+    const stock = tailwind[this.dataset].map((f): Scale => ({
+      id: "tw:" + f.name,
+      name: f.name,
+      kind: "tailwind",
+      family: f,
+      hex: f.l.map((_, i) => hexOf(oklchToHex(f.l[i], f.c[i], f.h[i]))),
+      hue: f.h[5],
+    }));
     const own: Scale[] = [];
     // Editing one scale shouldn't regenerate the other 50: reuse results whose parameters didn't change.
     const seen = new Map<string, { key: string; scale: Scale }>();

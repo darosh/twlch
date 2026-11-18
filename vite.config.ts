@@ -10,9 +10,7 @@ export default defineConfig({
   pack: [
     {
       entry: "src/index.ts",
-      dts: {
-        tsgo: true,
-      },
+      dts: true,
       exports: false,
     },
     // Standalone browser builds with colorjs.io inlined, for CDNs and <script> tags.
