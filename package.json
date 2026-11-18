@@ -1,0 +1,84 @@
+{
+  "name": "twlch",
+  "version": "0.1.0",
+  "description": "Tailwind scales interpolation",
+  "keywords": [
+    "color",
+    "color-scale",
+    "colors",
+    "interpolation",
+    "oklch",
+    "palette",
+    "tailwind",
+    "tailwindcss"
+  ],
+  "homepage": "https://darosh.github.io/twlch/",
+  "bugs": {
+    "url": "https://github.com/darosh/twlch/issues"
+  },
+  "license": "MIT",
+  "author": "Jan Forst <ensonador@gmail.com>",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/darosh/twlch.git"
+  },
+  "files": [
+    "dist"
+  ],
+  "type": "module",
+  "sideEffects": false,
+  "types": "./dist/index.d.mts",
+  "unpkg": "./dist/twlch.browser.iife.js",
+  "jsdelivr": "./dist/twlch.browser.iife.js",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.mts",
+      "default": "./dist/index.mjs"
+    },
+    "./browser": {
+      "types": "./dist/index.d.mts",
+      "default": "./dist/twlch.browser.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "scripts": {
+    "build": "vp pack",
+    "dev": "vp pack --watch",
+    "demo": "vp run @twlch/demo#dev",
+    "test": "vp test",
+    "check": "vp check",
+    "extract": "node scripts/extract.ts",
+    "loo": "node scripts/loo.ts",
+    "ready": "vp check && vp test && vp pack && vp run @twlch/demo#build",
+    "deploy": "bash scripts/deploy.sh",
+    "prepare": "vp config",
+    "prepublishOnly": "vp run ready"
+  },
+  "dependencies": {
+    "colorjs.io": "catalog:"
+  },
+  "devDependencies": {
+    "@types/node": "catalog:",
+    "tailwindcss": "catalog:",
+    "typescript": "catalog:",
+    "vite": "catalog:",
+    "vite-plus": "catalog:"
+  },
+  "devEngines": {
+    "packageManager": {
+      "name": "pnpm",
+      "version": "12.21.0",
+      "onFail": "download"
+    }
+  },
+  "engines": {
+    "node": ">=22.18.0"
+  },
+  "inlinedDependencies": {
+    "colorjs.io": "0.7.1"
+  }
+}

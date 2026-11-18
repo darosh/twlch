@@ -1,0 +1,38 @@
+{
+  "name": "@twlch/demo",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vp dev",
+    "build": "vp build",
+    "preview": "vp preview"
+  },
+  "dependencies": {
+    "@pixi/3d": "catalog:",
+    "@sveltejs/vite-plugin-svelte": "catalog:",
+    "allo-font": "catalog:",
+    "colorjs.io": "catalog:",
+    "colornames-oklab": "catalog:",
+    "pixi.js": "catalog:",
+    "svelte": "catalog:",
+    "twlch": "catalog:"
+  },
+  "devDependencies": {
+    "@fontsource-variable/geist": "catalog:",
+    "@internationalized/date": "catalog:",
+    "@lucide/svelte": "catalog:",
+    "@tailwindcss/vite": "catalog:",
+    "bits-ui": "catalog:",
+    "cn": "catalog:",
+    "mode-watcher": "catalog:",
+    "shadcn-svelte": "catalog:",
+    "svelte-sonner": "catalog:",
+    "tailwind-variants": "catalog:",
+    "tailwindcss": "catalog:",
+    "tw-animate-css": "catalog:",
+    "typescript": "catalog:",
+    "vite": "catalog:",
+    "vite-plus": "catalog:"
+  }
+}
