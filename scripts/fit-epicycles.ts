@@ -1,4 +1,4 @@
-// Fits the epicycle model in src/models/epicycles.ts to the Tailwind chromatic families.
+// Fits the epicycle model to the Tailwind chromatic families and writes it as a plain function.
 // Run: node scripts/fit-epicycles.ts [--rL 3] [--rZ 6] [--lam 0.015] [--ridge 0.003] [--search ga|greedy]
 //        [--digits 4] [--loo] [--write]
 //   --rL, --rZ   number of shade patterns for lightness and for chroma/hue
@@ -8,7 +8,7 @@
 //                circles, seeded with the greedy answer
 //   --digits     significant digits of the written numbers (default 4); reported errors include the rounding
 //   --loo        also report leave-one-hue-out error
-//   --write      emit src/models/epicycles.generated.ts
+//   --write      emit src/models/epicycles.generated.ts: plain code, the sums of cos/sin unrolled, no data
 //
 // The shade patterns come from an SVD of the 17 families. Which circles carry each pattern around the hue
 // wheel is a bitmask over (pattern, frequency 1…8): that structure is all the GA searches, because for a
@@ -17,8 +17,188 @@ import { writeFileSync } from "node:fs";
 import { tailwind } from "../src/data.ts";
 import type { Family } from "../src/data.ts";
 import { createTwlch } from "../src/model.ts";
-import { epicyclesCurve, epicyclesSize } from "../src/models/epicycles.ts";
-import type { EpicyclesPart, EpicyclesSpec } from "../src/models/epicycles.ts";
+import { pchipXY } from "../src/pchip.ts";
+import {
+  chebEval,
+  chebLines,
+  chebT,
+  chebTerms,
+  fitCheb,
+  solve,
+  sumExpr,
+  trigLines,
+  xOf,
+} from "./lib.ts";
+
+// ---- the model: shade patterns carried around the hue wheel by circles -------------------------------
+//   value(shade, hue) = mean(shade) + Σ_k pattern_k(shade) · circles_k(hue)
+//   circles_k(hue)    = w₀ + Σ_j a_j cos(h_j·hue) + b_j sin(h_j·hue)      (h_j whole numbers: closes at 360°)
+// Lightness is one such surface; chroma and hue are one complex surface z = c·e^{i(h − hue)}, stored as n
+// real parts then n imaginary parts, which factors the hue wheel itself out.
+interface EpicyclesPart {
+  mu: number[];
+  comps: { u: number[]; h: number[]; w: number[] }[];
+}
+interface EpicyclesSpec {
+  n: number;
+  hues: number[];
+  l: EpicyclesPart;
+  z: EpicyclesPart;
+}
+const evalPart = (part: EpicyclesPart, a: number): number[] => {
+  const out = part.mu.slice();
+  for (const { u, h, w } of part.comps) {
+    let s = w[0];
+    for (let j = 0; j < h.length; j++) {
+      s +=
+        w[2 * j + 1] * Math.cos(h[j] * a * (Math.PI / 180)) +
+        w[2 * j + 2] * Math.sin(h[j] * a * (Math.PI / 180));
+    }
+    for (let i = 0; i < out.length; i++) out[i] += s * u[i];
+  }
+  return out;
+};
+/** The scale at hue `a` (degrees), one entry per shade. */
+function evalSpec(spec: EpicyclesSpec, a: number) {
+  const L = evalPart(spec.l, a);
+  const Z = evalPart(spec.z, a);
+  return Array.from({ length: spec.n }, (_, i) => {
+    const h = a + Math.atan2(Z[spec.n + i], Z[i]) / (Math.PI / 180);
+    return { l: L[i], c: Math.hypot(Z[i], Z[spec.n + i]), h: ((h % 360) + 360) % 360 };
+  });
+}
+/** Numbers stored: what the size penalty prices. */
+const sizeOf = (spec: EpicyclesSpec) => {
+  const part = (p: EpicyclesPart) =>
+    p.mu.length + p.comps.reduce((s, c) => s + c.u.length + c.h.length + c.w.length, 0);
+  return part(spec.l) + part(spec.z) + spec.hues.length;
+};
+
+// ---- code generation: plain sums of cos/sin, no loops, no data ---------------------------------------
+// ---- shade as a parameter: every shade pattern and mean becomes a Chebyshev series in shade -----------
+// x = (shade − 500) / 450 runs over [−1, 1] for shades 50…950; T_m are Chebyshev polynomials.
+const SHADES = tailwind.shades;
+interface ContPart {
+  /** One series per output (lightness: 1; chroma/hue: real part, imaginary part). */
+  mu: number[][];
+  comps: { u: number[][]; h: number[]; w: number[] }[];
+}
+interface ContSpec {
+  hues: number[];
+  l: ContPart;
+  z: ContPart;
+}
+function toContinuous(spec: EpicyclesSpec, deg: number): ContSpec {
+  const split = (v: number[], k: number) =>
+    Array.from({ length: k }, (_, q) => fitCheb(v.slice(q * n, (q + 1) * n), SHADES, deg));
+  const part = (p: EpicyclesPart, k: number): ContPart => ({
+    mu: split(p.mu, k),
+    comps: p.comps.map((c) => ({ u: split(c.u, k), h: c.h, w: c.w })),
+  });
+  return { hues: spec.hues, l: part(spec.l, 1), z: part(spec.z, 2) };
+}
+const roundCont = (c: ContSpec): ContSpec => {
+  const part = (p: ContPart): ContPart => ({
+    mu: p.mu.map((f) => f.map(R4)),
+    comps: p.comps.map((k) => ({ u: k.u.map((f) => f.map(R4)), h: k.h, w: k.w.map(R4) })),
+  });
+  return { hues: c.hues.map((h) => Number(h.toFixed(3))), l: part(c.l), z: part(c.z) };
+};
+const contSize = (c: ContSpec) => {
+  const part = (p: ContPart) =>
+    p.mu.reduce((t, f) => t + f.length, 0) +
+    p.comps.reduce(
+      (t, k) => t + k.u.reduce((q, f) => q + f.length, 0) + k.h.length + k.w.length,
+      0,
+    );
+  return part(c.l) + part(c.z) + c.hues.length;
+};
+/** The colour at an arbitrary shade (50…950) and hue. */
+function evalAt(c: ContSpec, shade: number, a: number) {
+  const T = chebT(xOf(shade), DEG);
+  const fn = (f: number[]) => chebEval(f, T);
+  const circles = (k: { h: number[]; w: number[] }) => {
+    let v = k.w[0];
+    for (let j = 0; j < k.h.length; j++) {
+      v += k.w[2 * j + 1] * Math.cos(k.h[j] * a * R) + k.w[2 * j + 2] * Math.sin(k.h[j] * a * R);
+    }
+    return v;
+  };
+  const out = (p: ContPart, q: number) =>
+    fn(p.mu[q]) + p.comps.reduce((t, k) => t + fn(k.u[q]) * circles(k), 0);
+  const x = out(c.z, 0);
+  const y = out(c.z, 1);
+  const h = a + Math.atan2(y, x) / R;
+  return { l: out(c.l, 0), c: Math.hypot(x, y), h: ((h % 360) + 360) % 360 };
+}
+
+function generate(c: ContSpec, version: string): string {
+  const harmonics = [...new Set([...c.l.comps, ...c.z.comps].flatMap((k) => k.h))].sort(
+    (a, b) => a - b,
+  );
+  const out: string[] = [];
+  out.push(`// Generated by scripts/fit-epicycles.ts against Tailwind ${version}. Do not edit.`);
+  out.push(
+    `// A few shade patterns, each carried around the hue wheel by a handful of rotating circles`,
+  );
+  out.push(
+    `// (epicycles): sums of cos/sin of whole turns of hue. Each pattern is itself a smooth function of`,
+  );
+  out.push(
+    `// shade (a Chebyshev sum), so shade is a real parameter. Lightness is one surface; chroma and hue`,
+  );
+  out.push(`// are one complex surface c·e^{i(h − hue)}, so the hue wheel itself is factored out.`);
+  out.push(`const R = Math.PI / 180;`);
+  out.push(``);
+  out.push(`/** Shade-500 hues of the Tailwind families it was fitted to, sorted. */`);
+  out.push(`export const epicyclesHues: number[] = ${JSON.stringify(c.hues)};`);
+  out.push(``);
+  out.push(`/** The colour (OKLCH) at a shade from 50 to 950 and a hue in degrees. */`);
+  out.push(
+    `export function epicyclesAt(shade: number, hue: number): { l: number; c: number; h: number } {`,
+  );
+  out.push(...chebLines(DEG));
+  out.push(`  const t = hue * R;`);
+  out.push(...trigLines(harmonics));
+  const parts: [string, string[], ContPart][] = [
+    ["l", ["l"], c.l],
+    ["z", ["x", "y"], c.z],
+  ];
+  for (const [name, outs, part] of parts) {
+    out.push(``);
+    out.push(
+      `  // ${name === "l" ? "lightness" : "chroma and hue"}: one value per pattern, the circles summed`,
+    );
+    part.comps.forEach((k, ki) => {
+      const terms: [number, string][] = [];
+      k.h.forEach((h, j) => terms.push([k.w[2 * j + 1], `c${h}`], [k.w[2 * j + 2], `s${h}`]));
+      out.push(`  const ${name}${ki} = ${sumExpr(k.w[0], terms, "    ")};`);
+    });
+    out.push(`  // ... and the shade functions that carry them`);
+    outs.forEach((o, q) => {
+      out.push(`  const ${o}m = ${sumExpr(part.mu[q][0], chebTerms(part.mu[q]), "    ")};`);
+      part.comps.forEach((k, ki) =>
+        out.push(`  const ${o}u${ki} = ${sumExpr(k.u[q][0], chebTerms(k.u[q]), "    ")};`),
+      );
+    });
+  }
+  const sumOf = (o: string, name: string, part: ContPart) =>
+    `${o}m${part.comps.map((_, ki) => ` + ${o}u${ki} * ${name}${ki}`).join("")}`;
+  out.push(``);
+  out.push(`  const X = ${sumOf("x", "z", c.z)};`);
+  out.push(`  const Y = ${sumOf("y", "z", c.z)};`);
+  out.push(`  const h = hue + Math.atan2(Y, X) / R;`);
+  out.push(
+    `  return { l: ${sumOf("l", "l", c.l)}, c: Math.hypot(X, Y), h: ((h % 360) + 360) % 360 };`,
+  );
+  out.push(`}`);
+  out.push(``);
+  out.push(`/** The scale at hue \`a\`: the 11 Tailwind shades 50, 100, 200 … 900, 950. */`);
+  out.push(`export function epicyclesCurve(a: number): { l: number; c: number; h: number }[] {`);
+  out.push(`  return [${SHADES.join(", ")}].map((shade) => epicyclesAt(shade, a));`);
+  out.push(`}`);
+  return out.join("\n") + "\n";
+}
 
 const arg = (name: string, d: number) => {
   const i = process.argv.indexOf(`--${name}`);
@@ -34,6 +214,7 @@ const LAM = arg("lam", 0.015);
 const RIDGE = arg("ridge", 0.003);
 const DIGITS = arg("digits", 4);
 const SEARCH = sarg("search", "ga");
+const DEG = arg("shadeDeg", 8);
 const KMAX = 8;
 const R = Math.PI / 180;
 const n = tailwind.shades.length;
@@ -64,28 +245,6 @@ function trainingSet(fams: Family[]) {
 }
 const anchor = (f: Family) => f.h[MID];
 const mean = (x: number[]) => x.reduce((s, v) => s + v, 0) / x.length;
-
-function solve(A: number[][], b: number[]): number[] {
-  const m = b.length;
-  const T = A.map((r, i) => [...r, b[i]]);
-  for (let c = 0; c < m; c++) {
-    let p = c;
-    for (let r = c + 1; r < m; r++) if (Math.abs(T[r][c]) > Math.abs(T[p][c])) p = r;
-    [T[c], T[p]] = [T[p], T[c]];
-    const d = T[c][c] || 1e-12;
-    for (let r = c + 1; r < m; r++) {
-      const f = T[r][c] / d;
-      for (let k = c; k <= m; k++) T[r][k] -= f * T[c][k];
-    }
-  }
-  const x = Array.from({ length: m }, () => 0);
-  for (let i = m - 1; i >= 0; i--) {
-    let s = T[i][m];
-    for (let k = i + 1; k < m; k++) s -= T[i][k] * x[k];
-    x[i] = s / (T[i][i] || 1e-12);
-  }
-  return x;
-}
 
 /** Eigenvectors of a symmetric matrix (Jacobi), sorted by decreasing eigenvalue. */
 function eigenvectors(S: number[][]): number[][] {
@@ -219,25 +378,12 @@ function fit(train: Family[], S: Structure, hues: number[]): EpicyclesSpec {
 }
 
 const R4 = (x: number) => Number(x.toPrecision(DIGITS));
-function rounded(spec: EpicyclesSpec): EpicyclesSpec {
-  const part = (p: EpicyclesPart): EpicyclesPart => ({
-    mu: p.mu.map(R4),
-    comps: p.comps.map((c) => ({ u: c.u.map(R4), h: c.h, w: c.w.map(R4) })),
-  });
-  return {
-    ...spec,
-    hues: spec.hues.map((h) => Number(h.toFixed(3))),
-    l: part(spec.l),
-    z: part(spec.z),
-  };
-}
-
 /** OKLab distance (x100) of the model at each family's hue, per shade. */
-function errors(spec: EpicyclesSpec, test: Family[]) {
+function errors(curve: (a: number) => { l: number; c: number; h: number }[], test: Family[]) {
   const e: number[] = [];
   const dl: number[] = [];
   for (const f of test) {
-    const m = epicyclesCurve(spec, anchor(f));
+    const m = curve(anchor(f));
     m.forEach((s, i) => {
       const a = [s.l, s.c * Math.cos(s.h * R), s.c * Math.sin(s.h * R)];
       const b = [f.l[i], f.c[i] * Math.cos(f.h[i] * R), f.c[i] * Math.sin(f.h[i] * R)];
@@ -255,8 +401,8 @@ const NBITS = (RL + RZ) * KMAX;
 function fitness(bits: boolean[]) {
   const S = bitsToStructure(bits);
   const spec = fit(TS.train, S, TS.hues);
-  const { e } = errors(spec, TS.unique);
-  return Math.max(...e) + 3 * mean(e) + LAM * epicyclesSize(spec);
+  const { e } = errors((a) => evalSpec(spec, a), TS.unique);
+  return Math.max(...e) + 3 * mean(e) + LAM * sizeOf(spec);
 }
 
 function greedy(): boolean[] {
@@ -323,29 +469,56 @@ const g = greedy();
 const bits = SEARCH === "ga" ? genetic(g) : g;
 const S = bitsToStructure(bits);
 const exact = fit(TS.train, S, TS.hues);
-const spec = rounded(exact);
+const spec = roundCont(toContinuous(exact, DEG));
+const curve = (a: number) => SHADES.map((sh) => evalAt(spec, sh, a));
 console.log(
-  `rL=${RL} rZ=${RZ} lam=${LAM} search=${SEARCH} digits=${DIGITS}: ${epicyclesSize(spec)} numbers (${(Date.now() - t0) / 1000}s)`,
+  `rL=${RL} rZ=${RZ} lam=${LAM} search=${SEARCH} shadeDeg=${DEG} digits=${DIGITS}: ${contSize(spec)} numbers (${(Date.now() - t0) / 1000}s)`,
 );
 console.log(
   `circles lightness: ${S.SL.map((x) => x.join(",") || "-").join(" | ")}; chroma/hue: ${S.SZ.map((x) => x.join(",") || "-").join(" | ")}`,
 );
-const { e, dl } = errors(spec, ALL);
+const { e, dl } = errors(curve, ALL);
 const endL = [0, 1, n - 2, n - 1].map((i) => 100 * Math.max(...ALL.map((_, k) => dl[k * n + i])));
 console.log(
-  `at the 17 Tailwind hues: dE mean ${mean(e).toFixed(2)} max ${Math.max(...e).toFixed(2)}; |dL|% at 50/100/900/950: ${endL.map((x) => x.toFixed(2)).join(" ")}`,
+  `at the 17 Tailwind hues, 11 shades: dE mean ${mean(e).toFixed(2)} max ${Math.max(...e).toFixed(2)}; |dL|% at 50/100/900/950: ${endL.map((x) => x.toFixed(2)).join(" ")}`,
 );
-const between = errors(spec, TS.dense).e;
+const between = errors(curve, TS.dense).e;
 console.log(
   `vs interpolation every ${STEP}° of hue: dE mean ${mean(between).toFixed(2)} max ${Math.max(...between).toFixed(2)}`,
 );
+{
+  // between the 11 shades: how far the continuous function strays from PCHIP through its own 11 values
+  const lab = (p: { l: number; c: number; h: number }) => [
+    p.l,
+    p.c * Math.cos(p.h * R),
+    p.c * Math.sin(p.h * R),
+  ];
+  const mids = SHADES.slice(1).map((v, i) => (v + SHADES[i]) / 2);
+  const dev: number[] = [];
+  for (let a = 0; a < 360; a += 10) {
+    const vals = SHADES.map((sh) => lab(evalAt(spec, sh, a)));
+    const f = [0, 1, 2].map((q) =>
+      pchipXY(
+        SHADES,
+        vals.map((v) => v[q]),
+      ),
+    );
+    for (const sh of mids) {
+      const p = lab(evalAt(spec, sh, a));
+      dev.push(100 * Math.hypot(...[0, 1, 2].map((q) => p[q] - f[q](sh))));
+    }
+  }
+  console.log(
+    `between shades vs PCHIP of its own 11 values: dE mean ${mean(dev).toFixed(2)} max ${Math.max(...dev).toFixed(2)}`,
+  );
+}
 
 if (process.argv.includes("--loo")) {
   const loo: number[] = [];
   for (const f of ALL) {
     const rest = trainingSet(ALL.filter((x) => x !== f));
     const m = fit(rest.train, S, rest.hues);
-    loo.push(...errors(m, [f]).e);
+    loo.push(...errors((a) => evalSpec(m, a), [f]).e);
   }
   console.log(
     `leave-one-hue-out dE: mean ${mean(loo).toFixed(2)} max ${Math.max(...loo).toFixed(2)}`,
@@ -353,11 +526,25 @@ if (process.argv.includes("--loo")) {
 }
 
 if (process.argv.includes("--write")) {
-  const src = `// Generated by scripts/fit-epicycles.ts against Tailwind ${tailwind.tailwind}. Do not edit.
-import type { EpicyclesSpec } from "./epicycles.ts";
-
-export const epicycles: EpicyclesSpec = ${JSON.stringify(spec)};
-`;
-  writeFileSync(new URL("../src/models/epicycles.generated.ts", import.meta.url), src);
+  const file = new URL("../src/models/epicycles.generated.ts", import.meta.url);
+  writeFileSync(file, generate(spec, tailwind.tailwind));
   console.log("wrote src/models/epicycles.generated.ts");
+  // the generated function must agree with the spec it was generated from, at any shade
+  const gen = (await import(`${file.href}?t=${Date.now()}`)) as {
+    epicyclesAt: (shade: number, hue: number) => { l: number; c: number; h: number };
+  };
+  let worst = 0;
+  for (let a = 0; a < 360; a += 7) {
+    for (let sh = 50; sh <= 950; sh += 25) {
+      const p = gen.epicyclesAt(sh, a);
+      const q = evalAt(spec, sh, a);
+      worst = Math.max(
+        worst,
+        Math.abs(p.l - q.l),
+        Math.abs(p.c - q.c),
+        Math.abs(((p.h - q.h + 540) % 360) - 180) * 1e-3,
+      );
+    }
+  }
+  console.log(`generated function vs spec: max difference ${worst.toExponential(1)}`);
 }

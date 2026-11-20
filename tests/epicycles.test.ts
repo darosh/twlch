@@ -1,7 +1,7 @@
 import { tailwind } from "../src/data.ts";
 import { expect, test } from "vite-plus/test";
 import * as standalone from "../src/epicycles.ts";
-import { twlch, twlchAnchors, twlchHue } from "../src/index.ts";
+import { epicyclesAt, epicyclesCurve, twlch, twlchAnchors, twlchHue } from "../src/index.ts";
 
 const de = (p: [number, number, number], q: [number, number, number]) => {
   const r = Math.PI / 180;
@@ -47,4 +47,23 @@ test("the standalone entry gives the same scales", () => {
     expect(standalone.twlch(color).swatches).toEqual(twlch(color, { epicycles: true }).swatches);
   }
   expect(standalone.twlchAnchors()).toHaveLength(tailwind.chromatic.length);
+});
+
+test("epicyclesAt takes shade as a parameter, continuous between the Tailwind shades", () => {
+  for (const hue of [20, 130, 260, 340]) {
+    const curve = epicyclesCurve(hue);
+    tailwind.shades.forEach((shade, i) => {
+      expect(epicyclesAt(shade, hue)).toEqual(curve[i]);
+    });
+    // lightness falls with shade, so an in-between shade lies between its neighbours
+    for (const [lo, mid, hi] of [
+      [100, 150, 200],
+      [300, 350, 400],
+      [800, 850, 900],
+    ]) {
+      const [a, m, b] = [lo, mid, hi].map((s) => epicyclesAt(s, hue).l);
+      expect(m).toBeLessThan(a);
+      expect(m).toBeGreaterThan(b);
+    }
+  }
 });

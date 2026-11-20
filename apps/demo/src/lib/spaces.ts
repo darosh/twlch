@@ -53,7 +53,8 @@ export const SPACES: Record<SpaceId, SpaceInfo> = {
   }),
 };
 
-export type PlotFamily = Family & { hex: number[] };
+/** `dense`: the scale sampled between the shades (12 points per step) where it is an exact function. */
+export type PlotFamily = Family & { hex: number[]; dense?: Family };
 
 /** Replace undefined hues (achromatic) by the nearest defined hue in the same family. */
 function fillHue(h: number[]): number[] {

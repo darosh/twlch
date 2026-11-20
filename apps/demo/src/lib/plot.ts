@@ -48,9 +48,22 @@ export function seriesOf(f: Family, key: Channel): number[] {
   return key === "h" ? unwrap(f.h) : f[key];
 }
 
-/** Points of a curve as (fractional shade index, value): the data itself, or a PCHIP resampling of it. */
-export function sampleCurve(vals: number[], smooth: boolean): { t: number; v: number }[] {
+/** The densely sampled series of a family that is an exact function (see PlotFamily.dense), if any. */
+export function denseOf(f: PlotFamily, key: Channel): number[] | undefined {
+  return f.dense ? seriesOf(f.dense, key) : undefined;
+}
+
+/**
+ * Points of a curve as (fractional shade index, value): the data itself, the exact function values
+ * where `dense` is given, or a PCHIP resampling of the 11 values.
+ */
+export function sampleCurve(
+  vals: number[],
+  smooth: boolean,
+  dense?: number[],
+): { t: number; v: number }[] {
   if (!smooth) return vals.map((v, t) => ({ t, v }));
+  if (dense) return dense.map((v, k) => ({ t: k / SAMPLES, v }));
   const f = pchip(vals);
   const n = (vals.length - 1) * SAMPLES;
   return Array.from({ length: n + 1 }, (_, k) => ({ t: k / SAMPLES, v: f(k / SAMPLES) }));
@@ -275,7 +288,7 @@ export class CurvePlot {
       for (const p of this.panels) {
         const vals = seriesOf(f, p.key);
         const poly: number[] = [];
-        sampleCurve(vals, this.opts.smooth).forEach(({ t, v }) =>
+        sampleCurve(vals, this.opts.smooth, denseOf(f, p.key)).forEach(({ t, v }) =>
           poly.push(this.px(p, t), this.py(p, v)),
         );
         lines.push(poly);

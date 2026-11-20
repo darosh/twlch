@@ -1,8 +1,11 @@
-// Fits the Fourier model in src/models/fourier.ts to the Tailwind chromatic families.
+// Fits the Fourier model (scripts/fourier-model.ts) to the Tailwind chromatic families and writes it as a
+// plain function of shade and hue.
 // Run: node scripts/fit-fourier.ts [--K 3] [--KL 12] [--KR 12] [--lam 1e-4] [--digits 4] [--loo] [--write]
 //   --loo    also report leave-one-hue-out error (refit without each family, predict it from its hue)
 //   --digits significant digits of the written coefficients (default 4); the reported errors include the rounding
-//   --write  emit src/models/fourier.generated.ts
+//   --shadeDeg degree of the Chebyshev series that make every per-shade coefficient a function of shade (default 10)
+//   --shadeRidge smoothness penalty on their high orders: exact at the 11 shades at 0, smoother between them above (default 1e-3)
+//   --write  emit src/models/fourier.generated.ts: plain code, sums of cos/sin and polynomials, no data
 //
 // Lightness depends only on hue, so it is solved first, per shade, as a ridge-regularised Fourier
 // series (closed form). The penalty grows with harmonic order and its strength is chosen per shade by
@@ -12,9 +15,22 @@
 import { writeFileSync } from "node:fs";
 import { tailwind } from "../src/data.ts";
 import type { Family } from "../src/data.ts";
-import { fourierCurve, initialParams, layout } from "../src/models/fourier.ts";
+import { createTwlch } from "../src/model.ts";
 import { pchipXY } from "../src/pchip.ts";
-import type { FourierSpec } from "../src/models/fourier.ts";
+import { fourierCurve, initialParams, layout } from "./fourier-model.ts";
+import type { FourierSpec } from "./fourier-model.ts";
+import {
+  chebEval,
+  chebLines,
+  chebT,
+  chebTerms,
+  fitCheb,
+  solve,
+  sumExpr,
+  sumNames,
+  trigLines,
+  xOf,
+} from "./lib.ts";
 
 const arg = (name: string, d: number) => {
   const i = process.argv.indexOf(`--${name}`);
@@ -24,6 +40,8 @@ const K = arg("K", 3);
 const KL = arg("KL", 12);
 const KR = arg("KR", 12);
 const DIGITS = arg("digits", 4);
+const DEG = arg("shadeDeg", 10);
+const SHADE_RIDGE = arg("shadeRidge", 1e-3);
 const LAM = arg("lam", 1e-4);
 const R = Math.PI / 180;
 const n = tailwind.shades.length;
@@ -40,35 +58,13 @@ const lab = (l: number, c: number, h: number): [number, number, number] => [
 ];
 
 /** Per-shade OKLab distance (x100) between the model at the family's hue and the family. */
-function errors(spec: FourierSpec, f: Family) {
-  const m = fourierCurve(spec, anchor(f));
+function errors(curve: (a: number) => { l: number; c: number; h: number }[], f: Family) {
+  const m = curve(anchor(f));
   return m.map((s, i) => {
     const p = lab(s.l, s.c, s.h);
     const q = lab(f.l[i], f.c[i], f.h[i]);
     return 100 * Math.hypot(p[0] - q[0], p[1] - q[1], p[2] - q[2]);
   });
-}
-
-function solve(A: number[][], b: number[]): number[] {
-  const m = b.length;
-  const M = A.map((row, i) => [...row, b[i]]);
-  for (let c = 0; c < m; c++) {
-    let piv = c;
-    for (let r = c + 1; r < m; r++) if (Math.abs(M[r][c]) > Math.abs(M[piv][c])) piv = r;
-    [M[c], M[piv]] = [M[piv], M[c]];
-    const d = M[c][c] || 1e-12;
-    for (let r = c + 1; r < m; r++) {
-      const f = M[r][c] / d;
-      for (let k = c; k <= m; k++) M[r][k] -= f * M[c][k];
-    }
-  }
-  const x = Array.from({ length: m }, () => 0);
-  for (let i = m - 1; i >= 0; i--) {
-    let s = M[i][m];
-    for (let k = i + 1; k < m; k++) s -= M[i][k] * x[k];
-    x[i] = s / (M[i][i] || 1e-12);
-  }
-  return x;
 }
 
 // ---- per-shade ridge Fourier series (lightness, chroma residual, hue residual) -------------------------------------------------------
@@ -273,24 +269,169 @@ function fitAll(data: Family[], start?: number[], lams?: Lams) {
 
 const t0 = Date.now();
 const { p, lams } = fitAll(fams);
-const sig = (x: number) => Number(x.toPrecision(DIGITS));
-const rounded = p.map(sig);
 const hues = fams.map(anchor).sort((a, b) => a - b);
-const spec: FourierSpec = { K, KL, KR, n, hues, params: rounded };
+const SHADES = tailwind.shades;
+const R4 = (x: number) => Number(x.toPrecision(DIGITS));
+
+// ---- shade as a parameter -----------------------------------------------------------------------------
+// The chroma bump and hue drift are already functions of u = (shade − 50) / 900. Every per-shade series
+// coefficient (lightness, chroma residual, hue residual) becomes a Chebyshev series in x = (shade − 500) / 450.
+interface FourierCont {
+  hues: number[];
+  /** P, μ, ln σ_left, ln σ_right, d1, d2: Fourier series in hue (K harmonics), constant first. */
+  bump: number[][];
+  c0: number;
+  pw: number;
+  /** One Chebyshev series in shade per Fourier coefficient: constant, then (cos, sin) per harmonic. */
+  L: number[][];
+  Cr: number[][];
+  Hr: number[][];
+}
+function toContinuous(params: number[]): FourierCont {
+  const group = (off: number, nk: number) =>
+    Array.from({ length: nk }, (_, q) =>
+      fitCheb(
+        SHADES.map((_, i) => params[off + i * nk + q]),
+        SHADES,
+        DEG,
+        SHADE_RIDGE,
+      ),
+    );
+  return {
+    hues,
+    bump: [o.P, o.mu, o.lsL, o.lsR, o.d1, o.d2].map((off) => params.slice(off, off + o.nf)),
+    c0: params[o.c0],
+    pw: params[o.pw],
+    L: group(o.L, o.nl),
+    Cr: group(o.Cr, o.nr),
+    Hr: group(o.Hr, o.nr),
+  };
+}
+const roundCont = (c: FourierCont): FourierCont => ({
+  hues: c.hues.map((h) => Number(h.toFixed(3))),
+  bump: c.bump.map((w) => w.map(R4)),
+  c0: R4(c.c0),
+  pw: R4(c.pw),
+  L: c.L.map((f) => f.map(R4)),
+  Cr: c.Cr.map((f) => f.map(R4)),
+  Hr: c.Hr.map((f) => f.map(R4)),
+});
+const contSize = (c: FourierCont) =>
+  c.hues.length +
+  c.bump.reduce((t, w) => t + w.length, 0) +
+  2 +
+  [...c.L, ...c.Cr, ...c.Hr].reduce((t, f) => t + f.length, 0);
+
+/** The colour at an arbitrary shade (50…950) and hue. */
+function evalAt(c: FourierCont, shade: number, a: number) {
+  const T = chebT(xOf(shade), DEG);
+  const u = (shade - 50) / 900;
+  const hueSeries = (w: number[]) => {
+    let v = w[0];
+    for (let j = 1; j <= K; j++) {
+      v += w[2 * j - 1] * Math.cos(j * a * R) + w[2 * j] * Math.sin(j * a * R);
+    }
+    return v;
+  };
+  const shadeSeries = (fns: number[][], k: number) => {
+    let v = chebEval(fns[0], T);
+    for (let j = 1; j <= k; j++) {
+      v +=
+        chebEval(fns[2 * j - 1], T) * Math.cos(j * a * R) +
+        chebEval(fns[2 * j], T) * Math.sin(j * a * R);
+    }
+    return v;
+  };
+  const [P, mu, lsL, lsR, d1, d2] = c.bump.map(hueSeries);
+  const z = Math.abs((u - mu) / (u < mu ? Math.exp(lsL) : Math.exp(lsR)));
+  const chroma = Math.max(0, c.c0 + P * Math.exp(-0.5 * z ** c.pw) + shadeSeries(c.Cr, KR));
+  const h = a + d1 * u + d2 * u * u + shadeSeries(c.Hr, KR);
+  return { l: shadeSeries(c.L, KL), c: chroma, h: ((h % 360) + 360) % 360 };
+}
+
+function generate(c: FourierCont, version: string): string {
+  const harmonics = Array.from({ length: Math.max(K, KL, KR) }, (_, j) => j + 1);
+  const out: string[] = [];
+  out.push(`// Generated by scripts/fit-fourier.ts against Tailwind ${version}. Do not edit.`);
+  out.push(
+    `// The Tailwind chromatic scales as a function of shade and hue: Fourier series in hue (sums of`,
+  );
+  out.push(
+    `// cos/sin of whole turns) whose coefficients are smooth functions of shade (Chebyshev sums). Chroma`,
+  );
+  out.push(`// is a two-sided bump over shade plus a residual, the hue a drift plus a residual.`);
+  out.push(`const R = Math.PI / 180;`);
+  out.push(``);
+  out.push(`/** Shade-500 hues of the Tailwind families it was fitted to, sorted. */`);
+  out.push(`export const fourierHues: number[] = ${JSON.stringify(c.hues)};`);
+  out.push(``);
+  out.push(`/** The colour (OKLCH) at a shade from 50 to 950 and a hue in degrees. */`);
+  out.push(
+    `export function fourierAt(shade: number, hue: number): { l: number; c: number; h: number } {`,
+  );
+  out.push(...chebLines(DEG));
+  out.push(`  const u = (shade - 50) / 900;`);
+  out.push(`  const t = hue * R;`);
+  out.push(...trigLines(harmonics));
+  out.push(``);
+  out.push(
+    `  // chroma bump P·exp(-½|(u − μ)/σ|^pw) and hue drift d1·u + d2·u²: Fourier series in hue`,
+  );
+  const bumpNames = ["P", "mu", "lsL", "lsR", "d1", "d2"];
+  c.bump.forEach((w, q) => {
+    const terms: [number, string][] = [];
+    for (let j = 1; j <= K; j++) terms.push([w[2 * j - 1], `c${j}`], [w[2 * j], `s${j}`]);
+    out.push(`  const ${bumpNames[q]} = ${sumExpr(w[0], terms, "    ")};`);
+  });
+  const groups: [string, number[][], number, string][] = [
+    ["l", c.L, KL, "lightness"],
+    ["cr", c.Cr, KR, "chroma residual"],
+    ["hr", c.Hr, KR, "hue residual (degrees)"],
+  ];
+  for (const [name, fns, k, label] of groups) {
+    out.push(``);
+    out.push(`  // ${label}: a Fourier series in hue whose coefficients are functions of shade`);
+    const names: string[] = [];
+    fns.forEach((f, q) => {
+      const id = q === 0 ? `${name}0` : `${name}${Math.ceil(q / 2)}${q % 2 ? "c" : "s"}`;
+      names.push(id);
+      out.push(`  const ${id} = ${sumExpr(f[0], chebTerms(f), "    ")};`);
+    });
+    const parts = [names[0]];
+    for (let j = 1; j <= k; j++)
+      parts.push(`${names[2 * j - 1]} * c${j}`, `${names[2 * j]} * s${j}`);
+    out.push(`  const ${name}Sum = ${sumNames(parts, "    ")};`);
+  }
+  out.push(``);
+  out.push(`  const z = Math.abs((u - mu) / (u < mu ? Math.exp(lsL) : Math.exp(lsR)));`);
+  out.push(`  const chroma = Math.max(0, ${c.c0} + P * Math.exp(-0.5 * z ** ${c.pw}) + crSum);`);
+  out.push(`  const h = hue + d1 * u + d2 * u * u + hrSum;`);
+  out.push(`  return { l: lSum, c: chroma, h: ((h % 360) + 360) % 360 };`);
+  out.push(`}`);
+  out.push(``);
+  out.push(`/** The scale at hue \`a\`: the 11 Tailwind shades 50, 100, 200 … 900, 950. */`);
+  out.push(`export function fourierCurve(a: number): { l: number; c: number; h: number }[] {`);
+  out.push(`  return [${SHADES.join(", ")}].map((shade) => fourierAt(shade, a));`);
+  out.push(`}`);
+  return out.join("\n") + "\n";
+}
+
+const cont = roundCont(toContinuous(p));
+const curve = (a: number) => SHADES.map((sh) => evalAt(cont, sh, a));
 console.log(
-  `K=${K} KL=${KL} lam=${LAM} params=${p.length} data=${fams.length * n * 3} (${(Date.now() - t0) / 1000}s)`,
+  `K=${K} KL=${KL} KR=${KR} shadeDeg=${DEG} digits=${DIGITS}: ${contSize(cont)} numbers (${(Date.now() - t0) / 1000}s)`,
 );
 
-// per-shade in-sample error: lightness, chroma, hue (degrees x chroma, i.e. perceptual) and total dE
+// per-shade error at the 17 Tailwind hues: lightness, chroma, hue and total dE
 console.log("shade  max|dL|%  max|dC|x100  max|dh|deg  max dE   mean dE");
-tailwind.shades.forEach((sh, i) => {
+SHADES.forEach((sh, i) => {
   const rows = fams.map((f) => {
-    const s = fourierCurve(spec, anchor(f))[i];
+    const s = curve(anchor(f))[i];
     return {
       dl: Math.abs(s.l - f.l[i]),
       dc: Math.abs(s.c - f.c[i]),
       dh: Math.abs(wrap180(s.h - f.h[i])),
-      de: errors(spec, f)[i],
+      de: errors(curve, f)[i],
     };
   });
   console.log(
@@ -310,8 +451,47 @@ tailwind.shades.forEach((sh, i) => {
     ].join(" "),
   );
 });
-const all = fams.flatMap((f) => errors(spec, f));
-console.log(`in-sample dE: mean ${mean(all).toFixed(2)} max ${Math.max(...all).toFixed(2)}`);
+const all = fams.flatMap((f) => errors(curve, f));
+console.log(
+  `at the 17 Tailwind hues, 11 shades: dE mean ${mean(all).toFixed(2)} max ${Math.max(...all).toFixed(2)}`,
+);
+{
+  // against the interpolated palette everywhere, and between shades against PCHIP of its own 11 values
+  const real = createTwlch(fams, "smooth");
+  const lab = (q: { l: number; c: number; h: number }) => [
+    q.l,
+    q.c * Math.cos(q.h * R),
+    q.c * Math.sin(q.h * R),
+  ];
+  const dist = (a: number[], b: number[]) =>
+    100 * Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]);
+  const vsInterp: number[] = [];
+  for (let a = 0; a < 360; a += 3) {
+    const r = real.curve(a);
+    curve(a).forEach((q, i) => vsInterp.push(dist(lab(q), lab(r[i]))));
+  }
+  console.log(
+    `vs interpolation every 3° of hue: dE mean ${mean(vsInterp).toFixed(2)} max ${Math.max(...vsInterp).toFixed(2)}`,
+  );
+  const mids = SHADES.slice(1).map((v, i) => (v + SHADES[i]) / 2);
+  const dev: number[] = [];
+  for (let a = 0; a < 360; a += 10) {
+    const vals = SHADES.map((sh) => lab(evalAt(cont, sh, a)));
+    const f = [0, 1, 2].map((q) =>
+      pchipXY(
+        SHADES,
+        vals.map((v) => v[q]),
+      ),
+    );
+    for (const sh of mids) {
+      const q = lab(evalAt(cont, sh, a));
+      dev.push(dist(q, [f[0](sh), f[1](sh), f[2](sh)]));
+    }
+  }
+  console.log(
+    `between shades vs PCHIP of its own 11 values: dE mean ${mean(dev).toFixed(2)} max ${Math.max(...dev).toFixed(2)}`,
+  );
+}
 
 if (process.argv.includes("--loo")) {
   const loo: number[] = [];
@@ -319,9 +499,9 @@ if (process.argv.includes("--loo")) {
   for (const f of fams) {
     const rest = fams.filter((g) => g !== f);
     const { p: pl } = fitAll(rest, p, lams);
-    const s: FourierSpec = { K, KL, KR, n, hues, params: pl };
-    loo.push(...errors(s, f));
-    looL.push(...fourierCurve(s, anchor(f)).map((x, i) => Math.abs(x.l - f.l[i])));
+    const dcurve = (a: number) => fourierCurve({ K, KL, KR, n, hues, params: pl }, a);
+    loo.push(...errors(dcurve, f));
+    looL.push(...dcurve(anchor(f)).map((x, i) => Math.abs(x.l - f.l[i])));
   }
   console.log(
     `leave-one-hue-out dE: mean ${mean(loo).toFixed(2)} max ${Math.max(...loo).toFixed(2)}; |dL| mean ${(100 * mean(looL)).toFixed(2)}% max ${(100 * Math.max(...looL)).toFixed(2)}%`,
@@ -329,11 +509,25 @@ if (process.argv.includes("--loo")) {
 }
 
 if (process.argv.includes("--write")) {
-  const src = `// Generated by scripts/fit-fourier.ts against Tailwind ${tailwind.tailwind}. Do not edit.
-import type { FourierSpec } from "./fourier.ts";
-
-export const fourier: FourierSpec = ${JSON.stringify({ K, KL, KR, n, hues: hues.map((h) => Number(h.toFixed(3))), params: rounded })};
-`;
-  writeFileSync(new URL("../src/models/fourier.generated.ts", import.meta.url), src);
+  const file = new URL("../src/models/fourier.generated.ts", import.meta.url);
+  writeFileSync(file, generate(cont, tailwind.tailwind));
   console.log("wrote src/models/fourier.generated.ts");
+  // the generated function must agree with the spec it was generated from, at any shade
+  const gen = (await import(`${file.href}?t=${Date.now()}`)) as {
+    fourierAt: (shade: number, hue: number) => { l: number; c: number; h: number };
+  };
+  let worst = 0;
+  for (let a = 0; a < 360; a += 7) {
+    for (let sh = 50; sh <= 950; sh += 25) {
+      const q = gen.fourierAt(sh, a);
+      const r = evalAt(cont, sh, a);
+      worst = Math.max(
+        worst,
+        Math.abs(q.l - r.l),
+        Math.abs(q.c - r.c),
+        Math.abs(((q.h - r.h + 540) % 360) - 180) * 1e-3,
+      );
+    }
+  }
+  console.log(`generated function vs spec: max difference ${worst.toExponential(1)}`);
 }

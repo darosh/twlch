@@ -1,8 +1,6 @@
 import type Color from "colorjs.io";
 import { epicyclesSource } from "./models/epicycles.ts";
-import { epicycles } from "./models/epicycles.generated.ts";
 import { fourierSource } from "./models/fourier.ts";
-import { fourier } from "./models/fourier.generated.ts";
 import * as core from "./scale.ts";
 import type {
   CurveSource,
@@ -16,12 +14,8 @@ export { createTwlch } from "./scale.ts";
 export type { TwlchResult, Swatch, DatasetName, Interpolation, CurveSource } from "./scale.ts";
 export { tailwind } from "./data.ts";
 export type { Family, TailwindData } from "./data.ts";
-export { fourierCurve, fourierSource } from "./models/fourier.ts";
-export type { FourierSpec } from "./models/fourier.ts";
-export { fourier } from "./models/fourier.generated.ts";
-export { epicyclesCurve, epicyclesSource } from "./models/epicycles.ts";
-export type { EpicyclesSpec } from "./models/epicycles.ts";
-export { epicycles } from "./models/epicycles.generated.ts";
+export { fourierAt, fourierCurve, fourierHues, fourierSource } from "./models/fourier.ts";
+export { epicyclesAt, epicyclesCurve, epicyclesHues, epicyclesSource } from "./models/epicycles.ts";
 
 /** Which fitted model computes the scales, instead of interpolating the Tailwind families. */
 export type Generator = "fourier" | "epicycles";
@@ -42,8 +36,8 @@ export interface TwlchOptions extends CoreOptions {
 }
 
 const sources: Record<Generator, CurveSource> = {
-  fourier: fourierSource(fourier),
-  epicycles: epicyclesSource(epicycles),
+  fourier: fourierSource,
+  epicycles: epicyclesSource,
 };
 const sourceOf = (o: Pick<TwlchOptions, "fourier" | "epicycles">) => {
   if (o.fourier && o.epicycles) throw new Error("twlch: choose either `fourier` or `epicycles`");

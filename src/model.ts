@@ -28,6 +28,8 @@ export interface CurveSource {
   hues: readonly number[];
   /** The scale at hue `a`, one entry per shade. */
   curve(a: number): Lch[];
+  /** The colour at any shade from 50 to 950 and hue `a`: when given, `shade(n)` reads from it, not PCHIP. */
+  at?(shade: number, a: number): Lch;
 }
 
 export interface Swatch {
@@ -50,7 +52,11 @@ export interface TwlchResult {
   matchDelta: number;
   /** OKLab distance (×100) between the input and the scale at the anchor shade. */
   error: number;
-  /** The colour at any shade from 50 to 950, including in-between ones such as 550. */
+  /**
+   * The colour at any shade from 50 to 950, including in-between ones such as 550. Computed sets
+   * (`fourier`, `epicycles`) read it straight from their function (unless `delta` is set); the others
+   * run PCHIP through the swatches.
+   */
   shade(n: number): Swatch;
 }
 
@@ -200,6 +206,38 @@ export function createTwlch(
     };
   }
 
+  /** Position of a shade among the 11, as a fraction: piecewise linear between the labels (150 → 1.5). */
+  function shadePos(shade: number) {
+    let k = 0;
+    while (k < n - 2 && shade > shades[k + 1]) k++;
+    return k + (shade - shades[k]) / (shades[k + 1] - shades[k]);
+  }
+
+  /**
+   * `shade(n)` for a model that is a function of shade: read it directly, bent the same way as the
+   * swatches (`bend`, for "match"). A non-zero `delta` scales every shade but the anchor, which is not a
+   * smooth function of shade, so that case is left to PCHIP through the swatches.
+   */
+  function functionReader(
+    swatches: Swatch[],
+    a: number,
+    delta: number,
+    bend?: (pos: number, s: Lch) => Lch,
+  ): (n: number) => Swatch {
+    if (!source?.at || delta !== 0) return shadeReader(swatches);
+    const at = source.at.bind(source);
+    const [first, last] = [shades[0], shades[n - 1]];
+    return (sh) => {
+      if (!(sh >= first && sh <= last)) {
+        throw new RangeError(`shade must be between ${first} and ${last}`);
+      }
+      const known = swatches.find((s) => s.shade === sh);
+      if (known) return known;
+      const s = at(sh, a);
+      return toSwatch(sh, bend ? bend(shadePos(sh), s) : s);
+    };
+  }
+
   function run(input: Lch, opts: TwlchOptions = {}): TwlchResult {
     const { mode = "snap", delta = 0, shade } = opts;
     const { a, i, d } = locate(input, shade);
@@ -207,6 +245,7 @@ export function createTwlch(
 
     let out: Lch[];
     let matchDelta = 0;
+    let bend: ((pos: number, s: Lch) => Lch) | undefined;
     if (mode === "snap") {
       out = base;
     } else {
@@ -214,12 +253,13 @@ export function createTwlch(
       const dh = wrap180(input.h - base[i].h);
       const ratio = base[i].c > 1e-4 ? input.c / base[i].c : 1;
       matchDelta = ratio - 1;
-      out = base.map((s, j) => {
-        // 1 at the anchor, easing to 0 at both ends so 50 and 950 stay on the dataset
-        const t = j <= i ? (i === 0 ? 1 : j / i) : (n - 1 - j) / (n - 1 - i);
+      // weight 1 at the anchor, easing to 0 at both ends so 50 and 950 stay on the dataset
+      bend = (pos, s) => {
+        const t = pos <= i ? (i === 0 ? 1 : pos / i) : (n - 1 - pos) / (n - 1 - i);
         const w = smooth(Math.min(1, Math.max(0, t)));
         return { l: s.l + dl * w, c: s.c * (1 + matchDelta * w), h: wrap360(s.h + dh * w) };
-      });
+      };
+      out = base.map((s, j) => bend!(j, s));
       out[i] = { ...input };
     }
     const swatches = finish(out, delta, mode === "match" ? i : -1);
@@ -229,7 +269,7 @@ export function createTwlch(
       anchorShade: shades[i],
       matchDelta,
       error: d,
-      shade: shadeReader(swatches),
+      shade: functionReader(swatches, a, delta, bend),
     };
   }
 
@@ -243,7 +283,7 @@ export function createTwlch(
       anchorShade: shades[mid],
       matchDelta: 0,
       error: 0,
-      shade: shadeReader(swatches),
+      shade: functionReader(swatches, a, delta),
     };
   }
 

@@ -1,7 +1,7 @@
 import Color from "colorjs.io";
 import { tailwind } from "@darosh/twlch";
 import type { Family } from "@darosh/twlch";
-import { twlch, twlchAnchors, twlchHue } from "@darosh/twlch";
+import { epicyclesAt, fourierAt, twlch, twlchAnchors, twlchHue } from "@darosh/twlch";
 import type { DatasetName, Generator, Interpolation, TwlchResult } from "@darosh/twlch";
 import { colorName, uniqueName } from "./custom.ts";
 import { oklchToHex } from "./color.ts";
@@ -58,13 +58,38 @@ export type Scale = {
   /** Shade-500 hue, used for sorting. */
   hue: number;
   result?: TwlchResult;
+  /**
+   * The scale read straight from the model's function at 12 points per shade step, for the smooth plot
+   * lines (instead of PCHIP through the 11 shades). Only for scales that are exactly the function.
+   */
+  dense?: Family;
 };
+
+const DENSE = 12; // points per shade step, as the plots resample
+/** A scale of a computed set at `hue`, sampled between the shades from the model's own function. */
+function denseAt(generator: Generator, hue: number, name: string): Family {
+  const at = generator === "fourier" ? fourierAt : epicyclesAt;
+  const shades = tailwind.shades;
+  const l: number[] = [];
+  const c: number[] = [];
+  const h: number[] = [];
+  for (let k = 0; k <= (shades.length - 1) * DENSE; k++) {
+    const pos = k / DENSE;
+    const lo = Math.min(Math.floor(pos), shades.length - 2);
+    const s = at(shades[lo] + (pos - lo) * (shades[lo + 1] - shades[lo]), hue);
+    l.push(s.l);
+    c.push(s.c);
+    h.push(s.h);
+  }
+  return { name, l, c, h };
+}
 
 const hexOf = (n: number) => "#" + n.toString(16).padStart(6, "0");
 let counter = 0;
 const nextId = () => `c${++counter}`;
 
 function fromResult(def: CustomDef, r: TwlchResult): Scale {
+  const { generator } = libDataset(def.dataset);
   const family: Family = {
     name: def.name,
     l: r.swatches.map((s) => s.l),
@@ -79,6 +104,11 @@ function fromResult(def: CustomDef, r: TwlchResult): Scale {
     hex: r.swatches.map((s) => s.hex),
     hue: family.h[5],
     result: r,
+    // exactly the function only when nothing bends or scales it: a hue, or a colour snapped to a scale
+    dense:
+      generator && def.delta === 0 && (def.kind === "hue" || def.mode === "snap")
+        ? denseAt(generator, r.hue, def.name)
+        : undefined,
   };
 }
 
@@ -111,11 +141,14 @@ class Store {
             };
           })
         : tailwind[this.dataset];
+    const { generator } = libDataset(this.dataset);
+    const hueOf = new Map(tailwind.chromatic.map((f) => [f.name, f.h[5]]));
     const stock = source.map((f): Scale => ({
       id: "tw:" + f.name,
       name: f.name,
       kind: "tailwind",
       family: f,
+      dense: generator ? denseAt(generator, hueOf.get(f.name) ?? f.h[5], f.name) : undefined,
       hex: f.l.map((_, i) => hexOf(oklchToHex(f.l[i], f.c[i], f.h[i]))),
       hue: f.h[5],
     }));
@@ -155,12 +188,21 @@ class Store {
   selected = $derived(this.scales.find((s) => s.id === this.selectedId) ?? null);
   selectedDef = $derived(this.custom.find((d) => d.id === this.selectedId) ?? null);
 
-  plotFamilies = $derived<PlotFamily[]>(
-    convertFamilies(
+  plotFamilies = $derived.by<PlotFamily[]>(() => {
+    const fams = convertFamilies(
       this.scales.map((s) => s.family),
       this.spaceInfo,
-    ),
-  );
+    );
+    if (!this.smooth) return fams;
+    // smooth lines of computed scales come from the model's function, not PCHIP through the 11 shades
+    const idx = this.scales.flatMap((s, i) => (s.dense ? [i] : []));
+    const dense = convertFamilies(
+      idx.map((i) => this.scales[i].dense as Family),
+      this.spaceInfo,
+    );
+    idx.forEach((i, q) => (fams[i] = { ...fams[i], dense: dense[q] }));
+    return fams;
+  });
   /** For fourier / epicycles: the model sampled every 2° of hue, so smooth 3D guides use its exact values. */
   ringFamilies = $derived.by<PlotFamily[] | null>(() => {
     if (this.dataset !== "fourier" && this.dataset !== "epicycles") return null;

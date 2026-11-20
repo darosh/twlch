@@ -47,19 +47,23 @@ With a bundler, keep using `import { twlch } from "@darosh/twlch"`; colorjs.io i
 
 ### Computed scales (`fourier`, `epicycles`)
 
-Instead of blending the 17 Tailwind families, the scale can be computed from a fitted model of the whole palette, a smooth function of hue. Pass `fourier: true` or `epicycles: true`:
+Instead of blending the 17 Tailwind families, the scale can be computed from a fitted model of the whole palette, a plain function of shade and hue. Pass `fourier: true` or `epicycles: true`:
 
 ```ts
 twlch("#3b82f6", { fourier: true });
 twlchHue(280, { epicycles: true });
 ```
 
-|                   | numbers | mean ΔE | max ΔE | what it is                                                                                           |
-| ----------------- | ------- | ------- | ------ | ---------------------------------------------------------------------------------------------------- |
-| `fourier: true`   | ~870    | 0.01    | 0.02   | one Fourier series in hue per shade for lightness, plus a chroma bump and per-shade residuals        |
-| `epicycles: true` | ~240    | 0.8     | 2.3    | a few shade patterns, each carried around the hue wheel by a handful of rotating circles (epicycles) |
+|                   | numbers | mean ΔE | max ΔE | what it is                                                                                                                             |
+| ----------------- | ------- | ------- | ------ | -------------------------------------------------------------------------------------------------------------------------------------- |
+| `fourier: true`   | ~890    | 0.02    | 0.06   | Fourier series in hue (sums of cos/sin) whose coefficients are smooth functions of shade, plus a chroma bump and residuals             |
+| `epicycles: true` | ~210    | 0.9     | 2.6    | a few shade patterns, each carried around the hue wheel by a handful of rotating circles (epicycles); each pattern a function of shade |
 
-ΔE is the OKLab distance ×100 at the 17 Tailwind hues. The Tailwind lightness is hand-tuned and too jagged for a short formula, so a smaller model costs visible error. Refit with `pnpm fit:fourier` (`--digits` sets the written precision, default 4) or `pnpm fit:epicycles` (a greedy search then a genetic algorithm choose the circles).
+ΔE is the OKLab distance ×100 at the 17 Tailwind hues and the 11 shades. The Tailwind lightness is hand-tuned and too jagged for a short formula, so a smaller model costs visible error.
+
+Both are generated as plain code with shade as a real parameter: `fourierAt(shade, hue)` and `epicyclesAt(shade, hue)` take any shade from 50 to 950 and return `{ l, c, h }` (OKLCH). `fourierCurve(hue)` and `epicyclesCurve(hue)` return the 11 Tailwind shades. In a computed set, `result.shade(n)` for an in-between shade such as 550 reads the function directly (also after `mode: "match"`); with a non-zero `delta`, or in the interpolated sets, it runs PCHIP through the swatches.
+
+Refit with `pnpm fit:fourier` (`--digits` sets the written precision, default 4; `--shadeDeg` and `--shadeRidge` trade exactness at the 11 shades against smoothness between them) or `pnpm fit:epicycles` (a greedy search then a genetic algorithm choose the circles).
 
 `@darosh/twlch/fourier` and `@darosh/twlch/epicycles` are single-model entries with no Tailwind data tables; `dist/twlch.fourier.browser.iife.js` (global `twlchFourier`) and `dist/twlch.epicycles.browser.iife.js` (global `twlchEpicycles`) are their `<script>` builds. The `dist/twlch.browser.*` builds contain neither model.
 

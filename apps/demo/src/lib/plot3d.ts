@@ -3,7 +3,7 @@ import { OrbitCamera } from "@pixi/3d/extras";
 import { Application, Point, Text } from "pixi.js";
 import { pchip } from "@darosh/twlch";
 import { fmt, niceMax } from "./color.ts";
-import { sampleCurve, seriesOf } from "./plot.ts";
+import { denseOf, sampleCurve, seriesOf } from "./plot.ts";
 import type { PlotOptions } from "./plot.ts";
 
 const BG = 0x0f1115;
@@ -247,9 +247,9 @@ export class Plot3D {
       const l = seriesOf(f, "l");
       const c = seriesOf(f, "c");
       const h = seriesOf(f, "h");
-      const pl = sampleCurve(l, this.opts.smooth);
-      const pc = sampleCurve(c, this.opts.smooth);
-      const ph = sampleCurve(h, this.opts.smooth);
+      const pl = sampleCurve(l, this.opts.smooth, denseOf(f, "l"));
+      const pc = sampleCurve(c, this.opts.smooth, denseOf(f, "c"));
+      const ph = sampleCurve(h, this.opts.smooth, denseOf(f, "h"));
       const pts: number[] = [];
       const screenPts: [number, number, number][] = [];
       pl.forEach((_, i) => {

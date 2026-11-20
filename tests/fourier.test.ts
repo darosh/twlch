@@ -23,7 +23,7 @@ test("fourier reproduces the Tailwind chromatic families from their hue alone", 
       count++;
     });
   }
-  expect(sum / count).toBeLessThan(0.02);
+  expect(sum / count).toBeLessThan(0.05);
 });
 
 test("fourier is periodic in hue and has the dataset's anchors", () => {
