@@ -1,6 +1,6 @@
 # twlch
 
-Tailwind scales interpolation. `twlch()` builds a 50–950 color scale from any color by interpolating Tailwind's hand-tuned OKLCH scales across the hue wheel, so a new scale has the same shape as a real Tailwind one.
+Tailwind scales interpolation. `twlch()` builds a 50–950 color scale from any color by interpolating Tailwind's hand-tuned OKLCH scales across the hue wheel, so a new scale has the same shape as a real Tailwind one. The scales can also be computed from fitted functions of shade and hue (`fourier`, `epicycles`).
 
 **Demo:** https://darosh.github.io/twlch/
 
@@ -50,8 +50,13 @@ With a bundler, keep using `import { twlch } from "@darosh/twlch"`; colorjs.io i
 Instead of blending the 17 Tailwind families, the scale can be computed from a fitted model of the whole palette, a plain function of shade and hue. Pass `fourier: true` or `epicycles: true`:
 
 ```ts
+import { twlch, twlchHue, epicyclesAt, fourierAt } from "@darosh/twlch";
+
 twlch("#3b82f6", { fourier: true });
 twlchHue(280, { epicycles: true });
+
+epicyclesAt(425, 280); // { l, c, h } in OKLCH: any shade 50–950, any hue
+fourierAt(425, 280);
 ```
 
 |                   | numbers | mean ΔE | max ΔE | what it is                                                                                                                             |
@@ -73,6 +78,7 @@ Refit with `pnpm fit:fourier` (`--digits` sets the written precision, default 4;
 const scale = twlch("#3b82f6");
 
 // Any shade between 50 and 950, not only the eleven Tailwind has:
+// (a monotone cubic through the swatches; in `fourier` / `epicycles` sets, the fitted function itself)
 scale.shade(550).hex;
 scale.shade(425); // { shade: 425, l, c, h, hex }
 
