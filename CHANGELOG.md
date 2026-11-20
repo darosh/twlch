@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.4.0](../../releases/tag/v0.4.0) - 2026-11-20
+
+Changes since [v0.3.1](../../releases/tag/v0.3.1).
+
+### Library (`@darosh/twlch`)
+
+- added the `hct` computed set (`hct: true`, `hctAt`, `hctCurve`, `@darosh/twlch/hct`, `twlch-hct` browser builds): a Material-style HCT tone ladder (a tone and a chroma ceiling per shade, the HCT hue as a smooth offset of the OKLCH hue), limited to Display P3 (hex is still mapped to sRGB) with a soft gamut clip (no corner in the curves) and a looser fit than `fourier` / `epicycles` (about 3.9 ΔE)
+- added `scripts/fit-hct.ts` (`pnpm fit:hct`): fits the tone and chroma ladders and the hue map, and compares a single chroma ceiling, one per shade, and a hard against a soft clip
+
+### Demo app
+
+- added the `hct` dataset
+- changed the dataset buttons to put `neutral` last (share links are unaffected) and widened the scale list panel to `w-80`
+
 ## [0.3.1](../../releases/tag/v0.3.1) - 2026-11-20
 
 Changes since [v0.3.0](../../releases/tag/v0.3.0).

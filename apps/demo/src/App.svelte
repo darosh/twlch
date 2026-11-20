@@ -30,7 +30,7 @@
         <Usage />
       </div>
     </main>
-    <aside class="w-72 shrink-0 border-l bg-sidebar"><ScaleList /></aside>
+    <aside class="w-80 shrink-0 border-l bg-sidebar"><ScaleList /></aside>
   </div>
 </div>
 </Tooltip.Provider>

@@ -1,29 +1,28 @@
 import Color from "colorjs.io";
 import { tailwind } from "@darosh/twlch";
 import type { Family } from "@darosh/twlch";
-import { epicyclesAt, fourierAt, twlch, twlchAnchors, twlchHue } from "@darosh/twlch";
+import { epicyclesAt, fourierAt, hctAt, twlch, twlchAnchors, twlchHue } from "@darosh/twlch";
 import type { DatasetName, Generator, Interpolation, TwlchResult } from "@darosh/twlch";
 import { colorName, uniqueName } from "./custom.ts";
 import { oklchToHex } from "./color.ts";
 import { SPACES, convertFamilies } from "./spaces.ts";
 import type { PlotFamily, SpaceId } from "./spaces.ts";
 
-/** Datasets in the UI. "fourier" and "epicycles" are dummy ones: the chromatic scales computed by a fitted model. */
+/** Datasets in the UI. "fourier", "epicycles" and "hct" are dummy ones: the chromatic scales computed by a fitted model. */
 export type Dataset = DatasetName | Generator;
-export const DATASETS: Dataset[] = ["chromatic", "neutral", "fourier", "epicycles"];
+export const DATASETS: Dataset[] = ["chromatic", "neutral", "fourier", "epicycles", "hct"];
 /** The library's dataset and (optional) generator behind a UI dataset. */
 export const libDataset = (d: Dataset): { dataset: DatasetName; generator?: Generator } =>
-  d === "fourier" || d === "epicycles" ? { dataset: "chromatic", generator: d } : { dataset: d };
+  d === "fourier" || d === "epicycles" || d === "hct"
+    ? { dataset: "chromatic", generator: d }
+    : { dataset: d };
+const isGenerated = (d: Dataset) => d === "fourier" || d === "epicycles" || d === "hct";
 /** Custom scales are shared by the chromatic and computed datasets; neutral keeps its own. */
 const poolOf = (d: Dataset) => (d === "neutral" ? "neutral" : "chromatic");
 /** Library options that select a dataset. */
 const datasetOpts = (d: Dataset) => {
   const { dataset, generator } = libDataset(d);
-  return generator === "fourier"
-    ? { dataset, fourier: true }
-    : generator === "epicycles"
-      ? { dataset, epicycles: true }
-      : { dataset };
+  return generator ? { dataset, [generator]: true } : { dataset };
 };
 
 /** The colour with its OKLCH hue turned by `deg` degrees (unclipped, so nothing is gamut-rounded). */
@@ -97,7 +96,7 @@ export type Scale = {
 const DENSE = 12; // points per shade step, as the plots resample
 /** A scale of a computed set at `hue`, sampled between the shades from the model's own function. */
 function denseAt(generator: Generator, hue: number, name: string): Family {
-  const at = generator === "fourier" ? fourierAt : epicyclesAt;
+  const at = { fourier: fourierAt, epicycles: epicyclesAt, hct: hctAt }[generator];
   const shades = tailwind.shades;
   const l: number[] = [];
   const c: number[] = [];
@@ -158,19 +157,18 @@ class Store {
 
   /** All scales sorted around the hue wheel. */
   scales = $derived.by<Scale[]>(() => {
-    // fourier / epicycles: the model evaluated at each chromatic family's hue, to compare against the real ones
-    const source =
-      this.dataset === "fourier" || this.dataset === "epicycles"
-        ? tailwind.chromatic.map((f): Family => {
-            const r = twlchHue(f.h[5], datasetOpts(this.dataset));
-            return {
-              name: f.name,
-              l: r.swatches.map((s) => s.l),
-              c: r.swatches.map((s) => s.c),
-              h: r.swatches.map((s) => s.h),
-            };
-          })
-        : tailwind[this.dataset];
+    // fourier / epicycles / hct: the model evaluated at each chromatic family's hue, to compare against the real ones
+    const source = isGenerated(this.dataset)
+      ? tailwind.chromatic.map((f): Family => {
+          const r = twlchHue(f.h[5], datasetOpts(this.dataset));
+          return {
+            name: f.name,
+            l: r.swatches.map((s) => s.l),
+            c: r.swatches.map((s) => s.c),
+            h: r.swatches.map((s) => s.h),
+          };
+        })
+      : tailwind[this.dataset];
     const { generator } = libDataset(this.dataset);
     const hueOf = new Map(tailwind.chromatic.map((f) => [f.name, f.h[5]]));
     const stock = source.map((f): Scale => ({
@@ -244,9 +242,9 @@ class Store {
     idx.forEach((i, q) => (fams[i] = { ...fams[i], dense: dense[q] }));
     return fams;
   });
-  /** For fourier / epicycles: the model sampled every 2° of hue, so smooth 3D guides use its exact values. */
+  /** For fourier / epicycles / hct: the model sampled every 2° of hue, so smooth 3D guides use its exact values. */
   ringFamilies = $derived.by<PlotFamily[] | null>(() => {
-    if (this.dataset !== "fourier" && this.dataset !== "epicycles") return null;
+    if (!isGenerated(this.dataset)) return null;
     const opts = datasetOpts(this.dataset);
     const sampled: Family[] = [];
     for (let a = 0; a < 360; a += 2) {

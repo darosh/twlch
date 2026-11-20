@@ -1,6 +1,6 @@
 {
   "name": "@darosh/twlch",
-  "version": "0.3.1",
+  "version": "0.4.0",
   "description": "Tailwind scales interpolation",
   "keywords": [
     "color",
@@ -55,6 +55,14 @@
       "types": "./dist/index-epicycles.d.mts",
       "default": "./dist/browser/twlch-epicycles.bundle.module.min.js"
     },
+    "./hct": {
+      "types": "./dist/index-hct.d.mts",
+      "default": "./dist/index-hct.mjs"
+    },
+    "./hct/browser": {
+      "types": "./dist/index-hct.d.mts",
+      "default": "./dist/browser/twlch-hct.bundle.module.min.js"
+    },
     "./package.json": "./package.json"
   },
   "publishConfig": {
@@ -70,6 +78,7 @@
     "loo": "node scripts/loo.ts",
     "fit:fourier": "node scripts/fit-fourier.ts --loo --write",
     "fit:epicycles": "node scripts/fit-epicycles.ts --loo --write",
+    "fit:hct": "node scripts/fit-hct.ts --write",
     "ready": "vp check && vp test && vp pack && vp run @twlch/demo#build",
     "deploy": "bash scripts/deploy.sh",
     "prepare": "vp config",

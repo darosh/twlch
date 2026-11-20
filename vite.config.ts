@@ -44,6 +44,7 @@ export default defineConfig({
         "src/index.ts",
         "src/index-fourier.ts",
         "src/index-epicycles.ts",
+        "src/index-hct.ts",
         "src/index-browser.ts",
       ],
       unbundle: true,
@@ -58,12 +59,14 @@ export default defineConfig({
     // Single-model builds: no Tailwind data tables, a fraction of the size.
     ...browserBuilds("twlch-fourier", "src/index-fourier.ts", "twlchFourier"),
     ...browserBuilds("twlch-epicycles", "src/index-epicycles.ts", "twlchEpicycles"),
+    ...browserBuilds("twlch-hct", "src/index-hct.ts", "twlchHct"),
   ],
   fmt: {
     ignorePatterns: [
       "src/data.generated.ts",
       "src/calc.fourier.generated.ts",
       "src/calc.epicycles.generated.ts",
+      "src/calc.hct.generated.ts",
     ],
   },
   lint: {

@@ -105,7 +105,7 @@
   <div class="flex flex-col gap-1.5 px-4 pb-3">
 <!--    <Label class="text-xs text-muted-foreground">dataset</Label>-->
     <ToggleGroup.Root type="single" variant="outline" size="sm" class="w-full" bind:value={() => store.dataset, (v) => v && (store.dataset = v as Dataset)}>
-      {#each DATASETS as d}
+      {#each DATASETS.toSorted((a, b) => Number(a === "neutral") - Number(b === "neutral")) as d}
         <ToggleGroup.Item value={d} class="flex-0.1">{d}</ToggleGroup.Item>
       {/each}
     </ToggleGroup.Root>

@@ -1,6 +1,7 @@
 import type Color from "colorjs.io";
 import { epicyclesSource } from "./calc.epicycles.ts";
 import { fourierSource } from "./calc.fourier.ts";
+import { hctSource } from "./calc.hct.ts";
 import * as core from "./scale.ts";
 import type {
   CurveSource,
@@ -16,9 +17,10 @@ export { tailwind } from "./data.ts";
 export type { Family, TailwindData } from "./data.ts";
 export { fourierAt, fourierCurve, fourierHues, fourierSource } from "./calc.fourier.ts";
 export { epicyclesAt, epicyclesCurve, epicyclesHues, epicyclesSource } from "./calc.epicycles.ts";
+export { hctAt, hctCurve, hctHue, hctHues, hctSource } from "./calc.hct.ts";
 
 /** Which fitted model computes the scales, instead of interpolating the Tailwind families. */
-export type Generator = "fourier" | "epicycles";
+export type Generator = "fourier" | "epicycles" | "hct";
 
 export interface TwlchOptions extends CoreOptions {
   /**
@@ -33,15 +35,24 @@ export interface TwlchOptions extends CoreOptions {
    * and a little less exact. Chromatic only: `dataset` is ignored. Not together with `fourier`.
    */
   epicycles?: boolean;
+  /**
+   * Compute the scales in the HCT colour space (see scripts/fit-hct.ts): a tone and a chroma ceiling per
+   * shade for every hue, limited to Display P3. A Material-style tone ladder that still reads as a Tailwind
+   * scale, though about 3.9 ΔE from the real ones on average. Chromatic only: `dataset` is ignored.
+   * Not together with `fourier` or `epicycles`.
+   */
+  hct?: boolean;
 }
 
 const sources: Record<Generator, CurveSource> = {
   fourier: fourierSource,
   epicycles: epicyclesSource,
+  hct: hctSource,
 };
-const sourceOf = (o: Pick<TwlchOptions, "fourier" | "epicycles">) => {
-  if (o.fourier && o.epicycles) throw new Error("twlch: choose either `fourier` or `epicycles`");
-  return o.fourier ? sources.fourier : o.epicycles ? sources.epicycles : undefined;
+const sourceOf = (o: Pick<TwlchOptions, "fourier" | "epicycles" | "hct">) => {
+  const on = (["fourier", "epicycles", "hct"] as const).filter((k) => o[k]);
+  if (on.length > 1) throw new Error("twlch: choose one of `fourier`, `epicycles` or `hct`");
+  return on.length ? sources[on[0]] : undefined;
 };
 
 /** Generate a 50–950 scale from any colour colorjs.io can parse. */
@@ -52,7 +63,10 @@ export function twlch(color: string | Color, opts: TwlchOptions = {}): TwlchResu
 /** Generate the scale at a hue on the wheel (the shade-500 hue), without needing a colour. */
 export function twlchHue(
   hue: number,
-  opts: Pick<TwlchOptions, "dataset" | "delta" | "interpolation" | "fourier" | "epicycles"> = {},
+  opts: Pick<
+    TwlchOptions,
+    "dataset" | "delta" | "interpolation" | "fourier" | "epicycles" | "hct"
+  > = {},
 ): TwlchResult {
   return core.twlchHue(hue, opts, sourceOf(opts));
 }
