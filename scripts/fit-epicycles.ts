@@ -8,7 +8,7 @@
 //                circles, seeded with the greedy answer
 //   --digits     significant digits of the written numbers (default 4); reported errors include the rounding
 //   --loo        also report leave-one-hue-out error
-//   --write      emit src/models/epicycles.generated.ts: plain code, the sums of cos/sin unrolled, no data
+//   --write      emit src/calc.epicycles.generated.ts: plain code, the sums of cos/sin unrolled, no data
 //
 // The shade patterns come from an SVD of the 17 families. Which circles carry each pattern around the hue
 // wheel is a bitmask over (pattern, frequency 1…8): that structure is all the GA searches, because for a
@@ -148,10 +148,12 @@ function generate(c: ContSpec, version: string): string {
     `// shade (a Chebyshev sum), so shade is a real parameter. Lightness is one surface; chroma and hue`,
   );
   out.push(`// are one complex surface c·e^{i(h − hue)}, so the hue wheel itself is factored out.`);
+  out.push(`import { chromaticHues, shades } from "./data.generated.ts";`);
+  out.push(``);
   out.push(`const R = Math.PI / 180;`);
   out.push(``);
   out.push(`/** Shade-500 hues of the Tailwind families it was fitted to, sorted. */`);
-  out.push(`export const epicyclesHues: number[] = ${JSON.stringify(c.hues)};`);
+  out.push(`export const epicyclesHues: number[] = chromaticHues;`);
   out.push(``);
   out.push(`/** The colour (OKLCH) at a shade from 50 to 950 and a hue in degrees. */`);
   out.push(
@@ -195,7 +197,7 @@ function generate(c: ContSpec, version: string): string {
   out.push(``);
   out.push(`/** The scale at hue \`a\`: the 11 Tailwind shades 50, 100, 200 … 900, 950. */`);
   out.push(`export function epicyclesCurve(a: number): { l: number; c: number; h: number }[] {`);
-  out.push(`  return [${SHADES.join(", ")}].map((shade) => epicyclesAt(shade, a));`);
+  out.push(`  return shades.map((shade) => epicyclesAt(shade, a));`);
   out.push(`}`);
   return out.join("\n") + "\n";
 }
@@ -526,9 +528,9 @@ if (process.argv.includes("--loo")) {
 }
 
 if (process.argv.includes("--write")) {
-  const file = new URL("../src/models/epicycles.generated.ts", import.meta.url);
+  const file = new URL("../src/calc.epicycles.generated.ts", import.meta.url);
   writeFileSync(file, generate(spec, tailwind.tailwind));
-  console.log("wrote src/models/epicycles.generated.ts");
+  console.log("wrote src/calc.epicycles.generated.ts");
   // the generated function must agree with the spec it was generated from, at any shade
   const gen = (await import(`${file.href}?t=${Date.now()}`)) as {
     epicyclesAt: (shade: number, hue: number) => { l: number; c: number; h: number };

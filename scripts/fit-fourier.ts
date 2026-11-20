@@ -5,7 +5,7 @@
 //   --digits significant digits of the written coefficients (default 4); the reported errors include the rounding
 //   --shadeDeg degree of the Chebyshev series that make every per-shade coefficient a function of shade (default 10)
 //   --shadeRidge smoothness penalty on their high orders: exact at the 11 shades at 0, smoother between them above (default 1e-3)
-//   --write  emit src/models/fourier.generated.ts: plain code, sums of cos/sin and polynomials, no data
+//   --write  emit src/calc.fourier.generated.ts: plain code, sums of cos/sin and polynomials, no data
 //
 // Lightness depends only on hue, so it is solved first, per shade, as a ridge-regularised Fourier
 // series (closed form). The penalty grows with harmonic order and its strength is chosen per shade by
@@ -360,10 +360,12 @@ function generate(c: FourierCont, version: string): string {
     `// cos/sin of whole turns) whose coefficients are smooth functions of shade (Chebyshev sums). Chroma`,
   );
   out.push(`// is a two-sided bump over shade plus a residual, the hue a drift plus a residual.`);
+  out.push(`import { chromaticHues, shades } from "./data.generated.ts";`);
+  out.push(``);
   out.push(`const R = Math.PI / 180;`);
   out.push(``);
   out.push(`/** Shade-500 hues of the Tailwind families it was fitted to, sorted. */`);
-  out.push(`export const fourierHues: number[] = ${JSON.stringify(c.hues)};`);
+  out.push(`export const fourierHues: number[] = chromaticHues;`);
   out.push(``);
   out.push(`/** The colour (OKLCH) at a shade from 50 to 950 and a hue in degrees. */`);
   out.push(
@@ -411,7 +413,7 @@ function generate(c: FourierCont, version: string): string {
   out.push(``);
   out.push(`/** The scale at hue \`a\`: the 11 Tailwind shades 50, 100, 200 … 900, 950. */`);
   out.push(`export function fourierCurve(a: number): { l: number; c: number; h: number }[] {`);
-  out.push(`  return [${SHADES.join(", ")}].map((shade) => fourierAt(shade, a));`);
+  out.push(`  return shades.map((shade) => fourierAt(shade, a));`);
   out.push(`}`);
   return out.join("\n") + "\n";
 }
@@ -509,9 +511,9 @@ if (process.argv.includes("--loo")) {
 }
 
 if (process.argv.includes("--write")) {
-  const file = new URL("../src/models/fourier.generated.ts", import.meta.url);
+  const file = new URL("../src/calc.fourier.generated.ts", import.meta.url);
   writeFileSync(file, generate(cont, tailwind.tailwind));
-  console.log("wrote src/models/fourier.generated.ts");
+  console.log("wrote src/calc.fourier.generated.ts");
   // the generated function must agree with the spec it was generated from, at any shade
   const gen = (await import(`${file.href}?t=${Date.now()}`)) as {
     fourierAt: (shade: number, hue: number) => { l: number; c: number; h: number };

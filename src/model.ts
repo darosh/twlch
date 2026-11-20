@@ -1,4 +1,5 @@
 import Color from "colorjs.io";
+import { shades } from "./data.generated.ts";
 import type { Family } from "./data.ts";
 import { linearXY, pchipXY } from "./pchip.ts";
 
@@ -65,9 +66,6 @@ const wrap180 = (a: number) => ((((a + 180) % 360) + 360) % 360) - 180;
 const wrap360 = (a: number) => ((a % 360) + 360) % 360;
 const smooth = (t: number) => t * t * (3 - 2 * t);
 
-/** Tailwind's shade labels. */
-export const SHADES = [50, 100, 200, 300, 400, 500, 600, 700, 800, 900, 950];
-
 /** Parse any colour colorjs.io understands into OKLCH, with an undefined hue read as 0. */
 export function toLch(color: string | Color): Lch {
   const [l, c, h] = new Color(color).to("oklch").coords;
@@ -82,7 +80,6 @@ export function createTwlch(
   source?: CurveSource,
 ) {
   if (!source && families.length < 2) throw new Error("twlch needs at least two families");
-  const shades = SHADES;
   const n = shades.length;
   const mid = Math.floor(n / 2);
   const interp = interpolation === "linear" ? linearXY : pchipXY;

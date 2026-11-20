@@ -13,6 +13,9 @@ Changes since [v0.1.0](../../releases/tag/v0.1.0).
 - added `fit:fourier` and `fit:epicycles` scripts to refit the models
 - changed core scale logic moved into `model.ts`; `createTwlch` and `CurveSource` are exported
 - fixed `match` mode: chroma `delta` now also scales the matched shade, so the whole scale moves together instead of kinking at the anchor (the matched shade equals the input colour only at `delta` 0)
+- changed the Tailwind data is now typed constants in `src/data.generated.ts` (`shades`, `chromatic`, `neutral`, `chromaticHues`, `neutralHues`, `tailwindVersion`) instead of a parsed JSON string, so unused parts tree-shake; `tailwind.generated.ts` is gone
+- changed `dist/` is unbundled and mirrors `src/` (no hashes in file names); entries are `index.ts`, `index-browser.ts`, `index-fourier.ts`, `index-epicycles.ts`, and the models moved from `models/` to `calc.fourier.ts`, `calc.epicycles.ts` (and `*.generated.ts`)
+- changed browser builds moved to `dist/browser/`, named by brand and target: `twlch.bundle.module.min.js` (ES module, bundles colorjs.io) and `twlch.global.min.js` (`<script>`, expects colorjs.io's global build), likewise `twlch-fourier.*` and `twlch-epicycles.*`. Package `exports` keys are unchanged; direct `dist/twlch.*` URLs are not
 
 ### Demo app
 

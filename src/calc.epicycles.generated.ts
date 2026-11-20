@@ -3,10 +3,12 @@
 // (epicycles): sums of cos/sin of whole turns of hue. Each pattern is itself a smooth function of
 // shade (a Chebyshev sum), so shade is a real parameter. Lightness is one surface; chroma and hue
 // are one complex surface c·e^{i(h − hue)}, so the hue wheel itself is factored out.
+import { chromaticHues, shades } from "./data.generated.ts";
+
 const R = Math.PI / 180;
 
 /** Shade-500 hues of the Tailwind families it was fitted to, sorted. */
-export const epicyclesHues: number[] = [16.439,25.331,47.604,70.08,86.047,130.85,149.579,162.48,182.503,215.221,237.323,259.815,277.117,292.717,303.9,322.15,354.308];
+export const epicyclesHues: number[] = chromaticHues;
 
 /** The colour (OKLCH) at a shade from 50 to 950 and a hue in degrees. */
 export function epicyclesAt(shade: number, hue: number): { l: number; c: number; h: number } {
@@ -85,5 +87,5 @@ export function epicyclesAt(shade: number, hue: number): { l: number; c: number;
 
 /** The scale at hue `a`: the 11 Tailwind shades 50, 100, 200 … 900, 950. */
 export function epicyclesCurve(a: number): { l: number; c: number; h: number }[] {
-  return [50, 100, 200, 300, 400, 500, 600, 700, 800, 900, 950].map((shade) => epicyclesAt(shade, a));
+  return shades.map((shade) => epicyclesAt(shade, a));
 }

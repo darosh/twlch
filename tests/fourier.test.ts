@@ -1,6 +1,6 @@
 import { tailwind } from "../src/data.ts";
 import { expect, test } from "vite-plus/test";
-import * as standalone from "../src/fourier.ts";
+import * as standalone from "../src/index-fourier.ts";
 import { twlch, twlchAnchors, twlchHue } from "../src/index.ts";
 
 const de = (p: [number, number, number], q: [number, number, number]) => {

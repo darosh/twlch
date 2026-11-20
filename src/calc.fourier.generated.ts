@@ -2,10 +2,12 @@
 // The Tailwind chromatic scales as a function of shade and hue: Fourier series in hue (sums of
 // cos/sin of whole turns) whose coefficients are smooth functions of shade (Chebyshev sums). Chroma
 // is a two-sided bump over shade plus a residual, the hue a drift plus a residual.
+import { chromaticHues, shades } from "./data.generated.ts";
+
 const R = Math.PI / 180;
 
 /** Shade-500 hues of the Tailwind families it was fitted to, sorted. */
-export const fourierHues: number[] = [16.439,25.331,47.604,70.08,86.047,130.85,149.579,162.48,182.503,215.221,237.323,259.815,277.117,292.717,303.9,322.15,354.308];
+export const fourierHues: number[] = chromaticHues;
 
 /** The colour (OKLCH) at a shade from 50 to 950 and a hue in degrees. */
 export function fourierAt(shade: number, hue: number): { l: number; c: number; h: number } {
@@ -249,5 +251,5 @@ export function fourierAt(shade: number, hue: number): { l: number; c: number; h
 
 /** The scale at hue `a`: the 11 Tailwind shades 50, 100, 200 … 900, 950. */
 export function fourierCurve(a: number): { l: number; c: number; h: number }[] {
-  return [50, 100, 200, 300, 400, 500, 600, 700, 800, 900, 950].map((shade) => fourierAt(shade, a));
+  return shades.map((shade) => fourierAt(shade, a));
 }

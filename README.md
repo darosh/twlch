@@ -29,7 +29,7 @@ Any color [colorjs.io](https://colorjs.io) can parse works as input. The result 
 
 ### In the browser, without a bundler
 
-The `<script>` build (`dist/twlch.browser.iife.js`, about 10 kB gzipped) expects colorjs.io's own global build, which provides `Color`. The ES module build (`dist/twlch.browser.js`) bundles colorjs.io (about 38 kB gzipped).
+The `<script>` build (`dist/browser/twlch.global.min.js`, about 10 kB gzipped) expects colorjs.io's own global build, which provides `Color`. The ES module build (`dist/browser/twlch.bundle.module.min.js`) bundles colorjs.io (about 38 kB gzipped).
 
 ```html
 <script src="https://colorjs.io/dist/color.global.js"></script>
@@ -39,9 +39,18 @@ The `<script>` build (`dist/twlch.browser.iife.js`, about 10 kB gzipped) expects
 </script>
 
 <script type="module">
-  import { twlch } from "https://cdn.jsdelivr.net/npm/@darosh/twlch/dist/twlch.browser.js";
+  import { twlch } from "https://cdn.jsdelivr.net/npm/@darosh/twlch/dist/browser/twlch.bundle.module.min.js";
 </script>
 ```
+
+| file (in `dist/browser/`)              | colorjs.io bundled | size     | gzip     |
+| -------------------------------------- | ------------------ | -------- | -------- |
+| `twlch.global.min.js`                  | no                 | 11.68 kB | 5.38 kB  |
+| `twlch.bundle.module.min.js`           | yes                | 93.36 kB | 37.70 kB |
+| `twlch-fourier.global.min.js`          | no                 | 14.72 kB | 7.22 kB  |
+| `twlch-fourier.bundle.module.min.js`   | yes                | 96.42 kB | 39.51 kB |
+| `twlch-epicycles.global.min.js`        | no                 | 7.48 kB  | 3.77 kB  |
+| `twlch-epicycles.bundle.module.min.js` | yes                | 89.17 kB | 36.07 kB |
 
 With a bundler, keep using `import { twlch } from "@darosh/twlch"`; colorjs.io is then shared with your app.
 
@@ -70,7 +79,7 @@ Both are generated as plain code with shade as a real parameter: `fourierAt(shad
 
 Refit with `pnpm fit:fourier` (`--digits` sets the written precision, default 4; `--shadeDeg` and `--shadeRidge` trade exactness at the 11 shades against smoothness between them) or `pnpm fit:epicycles` (a greedy search then a genetic algorithm choose the circles).
 
-`@darosh/twlch/fourier` and `@darosh/twlch/epicycles` are single-model entries with no Tailwind data tables; `dist/twlch.fourier.browser.iife.js` (global `twlchFourier`) and `dist/twlch.epicycles.browser.iife.js` (global `twlchEpicycles`) are their `<script>` builds. The `dist/twlch.browser.*` builds contain neither model.
+`@darosh/twlch/fourier` and `@darosh/twlch/epicycles` are single-model entries with no Tailwind data tables; `dist/browser/twlch-fourier.global.min.js` (global `twlchFourier`) and `dist/browser/twlch-epicycles.global.min.js` (global `twlchEpicycles`) are their `<script>` builds. The `dist/browser/*` builds contain neither model.
 
 ### Custom shades
 
@@ -166,7 +175,7 @@ vp run demo         # run the demo dev server
 vp test             # run the tests
 vp pack             # build the library into dist/
 vp run ready        # check + test + build library and demo
-vp run extract      # regenerate src/tailwind.generated.ts from the installed tailwindcss
+vp run extract      # regenerate src/data.generated.ts from the installed tailwindcss
 vp run loo          # leave-one-out validation of the interpolation
 vp run deploy       # build the demo and publish it to the gh-pages branch
 ```

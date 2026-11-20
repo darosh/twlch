@@ -1,7 +1,7 @@
 /**
  * The Fourier model as the fitter sees it: L, C and hue of the 11 Tailwind shades as smooth,
  * hue-periodic functions of the shade-500 hue, with every coefficient stored per shade. The library
- * gets it as generated plain code instead (src/models/fourier.generated.ts), where each per-shade
+ * gets it as generated plain code instead (src/calc.fourier.generated.ts), where each per-shade
  * coefficient is itself a smooth function of shade. See scripts/fit-fourier.ts.
  *
  *  - chroma: a two-sided bump over the shade axis, c0 + P·exp(-½|(t-μ)/σ|^pw), where P, μ and both
