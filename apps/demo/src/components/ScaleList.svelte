@@ -32,7 +32,7 @@
     <h2 class="display text-lg">Scales</h2>
     <div class="flex items-center gap-1.5">
       <Popover.Root bind:open={filterMenu}>
-        <Tip label="Filter: {store.filter}">
+        <Tip label="Filter scales">
           {#snippet children(tp)}
             <Popover.Trigger>
               {#snippet child({ props })}
@@ -57,13 +57,13 @@
           {/each}
         </Popover.Content>
       </Popover.Root>
-      <CopyMenu scales={store.visible} label="Copy shown scales" />
-      <Tip label="Copy link to this state">
+      <CopyMenu scales={store.visible} label="Copy filtered scales" />
+      <Tip label="Copy link">
         {#snippet children(tp)}
           <Button {...tp} variant="ghost" size="icon-sm" aria-label="Copy link" onclick={share}><ShareIcon /></Button>
         {/snippet}
       </Tip>
-      <Tip label="Remove the scales you added to this dataset">
+      <Tip label="Remove custom scales">
         {#snippet children(tp)}
           <Button {...tp} variant="ghost" size="icon-sm" aria-label="Clear added scales" disabled={store.mine.length === 0} onclick={() => store.clearCustom()}>
             <RotateCcwIcon />

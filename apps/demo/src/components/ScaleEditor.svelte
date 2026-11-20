@@ -170,7 +170,7 @@
       <CopyMenu scales={[scale]} label="Copy this scale" text="Copy scale" />
       <Tip label="Delete scale">
         {#snippet children(tp)}
-          <Button {...tp} variant="destructive" size="icon" aria-label="Delete scale" onclick={() => store.remove(def.id)}><TrashIcon /></Button>
+          <Button {...tp} variant="ghost" size="icon" aria-label="Delete scale" onclick={() => store.remove(def.id)}><TrashIcon /></Button>
         {/snippet}
       </Tip>
     </div>
