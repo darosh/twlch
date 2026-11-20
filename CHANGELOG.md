@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## [0.2.0](../../releases/tag/v0.2.0) - 2026-11-20
 
 Changes since [v0.1.0](../../releases/tag/v0.1.0).
 
