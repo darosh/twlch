@@ -21,7 +21,7 @@ export default defineConfig({
       minify: true,
       dts: false,
       clean: false,
-      deps: { alwaysBundle: ["colorjs.io"] },
+      deps: { alwaysBundle: ["colorjs.io"], onlyBundle: ["colorjs.io"] },
     },
     {
       entry: { "twlch.browser": "src/browser.ts" },
@@ -43,7 +43,7 @@ export default defineConfig({
       minify: true,
       dts: false,
       clean: false,
-      deps: { alwaysBundle: ["colorjs.io"] },
+      deps: { alwaysBundle: ["colorjs.io"], onlyBundle: ["colorjs.io"] },
     },
     {
       entry: { "twlch.fourier.browser": "src/fourier.ts" },
@@ -64,7 +64,7 @@ export default defineConfig({
       minify: true,
       dts: false,
       clean: false,
-      deps: { alwaysBundle: ["colorjs.io"] },
+      deps: { alwaysBundle: ["colorjs.io"], onlyBundle: ["colorjs.io"] },
     },
     {
       entry: { "twlch.epicycles.browser": "src/epicycles.ts" },
