@@ -176,11 +176,9 @@ export function createTwlch(
     return { shade, l, c, h, hex };
   }
 
-  /** Gamut-map to sRGB and format. `keep` is a shade whose chroma must not be scaled by delta. */
-  function finish(out: Lch[], delta: number, keep: number): Swatch[] {
-    return out.map((s, j) =>
-      toSwatch(shades[j], { ...s, c: j === keep ? s.c : s.c * (1 + delta) }),
-    );
+  /** Gamut-map to sRGB and format, scaling every shade's chroma by (1 + delta). */
+  function finish(out: Lch[], delta: number): Swatch[] {
+    return out.map((s, j) => toSwatch(shades[j], { ...s, c: s.c * (1 + delta) }));
   }
 
   /** Curves through a finished scale, so any shade between 50 and 950 can be read off it. */
@@ -215,8 +213,8 @@ export function createTwlch(
 
   /**
    * `shade(n)` for a model that is a function of shade: read it directly, bent the same way as the
-   * swatches (`bend`, for "match"). A non-zero `delta` scales every shade but the anchor, which is not a
-   * smooth function of shade, so that case is left to PCHIP through the swatches.
+   * swatches (`bend`, for "match"). A non-zero `delta` scales the chroma of every shade, so that case is left
+   * to PCHIP through the swatches.
    */
   function functionReader(
     swatches: Swatch[],
@@ -262,7 +260,7 @@ export function createTwlch(
       out = base.map((s, j) => bend!(j, s));
       out[i] = { ...input };
     }
-    const swatches = finish(out, delta, mode === "match" ? i : -1);
+    const swatches = finish(out, delta);
     return {
       swatches,
       hue: a,
@@ -276,7 +274,7 @@ export function createTwlch(
   /** The dataset scale at a given shade-500 hue, with chroma scaled by (1 + delta). */
   function fromHue(hue: number, delta = 0): TwlchResult {
     const a = wrap360(hue);
-    const swatches = finish(curve(a), delta, -1);
+    const swatches = finish(curve(a), delta);
     return {
       swatches,
       hue: a,
