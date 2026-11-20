@@ -46,7 +46,8 @@
   // How evenly the Tailwind families sit around the hue wheel in this space (lower CV = more even).
   const gaps = $derived.by(() => {
     if (kind !== "2d" || store.dataset === "neutral") return null;
-    const own = store.plotFamilies.filter((_, i) => store.scales[i].kind === "tailwind");
+    const own = store.plotFamilies.filter((_, i) => store.visible[i].kind === "tailwind");
+    if (own.length < 2) return null;
     const all = tailwind.shades.map((_, i) => hueGaps(own, i));
     return { mean: all.reduce((a, g) => a + g.cv, 0) / all.length, s500: all[5], s950: all[10] };
   });

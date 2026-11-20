@@ -6,6 +6,13 @@
   import Swatches from "./components/Swatches.svelte";
   import PlotSection from "./components/PlotSection.svelte";
   import Usage from "./components/Usage.svelte";
+  import { toast } from "svelte-sonner";
+  import { readHash } from "$lib/share.ts";
+
+  readHash().then((ok) => {
+    if (ok === false) toast.error("Couldn't read the shared link");
+    else if (ok) toast.success("Loaded shared state");
+  });
 </script>
 
 <div class="flex h-screen flex-col">

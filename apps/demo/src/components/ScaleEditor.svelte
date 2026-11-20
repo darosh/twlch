@@ -10,7 +10,7 @@
   import { Slider } from "$lib/components/ui/slider";
   import * as ToggleGroup from "$lib/components/ui/toggle-group";
   import { copy } from "$lib/copy.ts";
-  import { INTERPOLATIONS, interpolationLabel } from "$lib/interpolation.ts";
+  import { INTERPOLATIONS } from "$lib/interpolation.ts";
   import type { Interpolation } from "@darosh/twlch";
   import { isValidColor, store, swatchValue } from "$lib/store.svelte.ts";
 
@@ -100,7 +100,7 @@
 
         <Field.Field>
           <Field.FieldLabel>Fit</Field.FieldLabel>
-          <ToggleGroup.Root type="single" variant="outline" size="sm" class="w-full" value={def.mode} onValueChange={(v) => v && store.update(def.id, { mode: v as "snap" | "match" })}>
+          <ToggleGroup.Root type="single" variant="outline" size="sm" class="w-full" bind:value={() => def.mode, (v) => v && store.update(def.id, { mode: v as "snap" | "match" })}>
             <ToggleGroup.Item value="snap" class="flex-1">snap</ToggleGroup.Item>
             <ToggleGroup.Item value="match" class="flex-1">match</ToggleGroup.Item>
           </ToggleGroup.Root>
@@ -133,16 +133,11 @@
 
       <Field.Field>
         <Field.FieldLabel>Interpolation across hue</Field.FieldLabel>
-        <Select.Root type="single" value={def.interpolation} onValueChange={(v) => store.update(def.id, { interpolation: v as Interpolation })}>
-          <Select.Trigger size="sm" class="w-full">{interpolationLabel(def.interpolation)}</Select.Trigger>
-          <Select.Content>
-            <Select.Group>
-              {#each INTERPOLATIONS as it}
-                <Select.Item value={it.value} label={it.label}>{it.label}</Select.Item>
-              {/each}
-            </Select.Group>
-          </Select.Content>
-        </Select.Root>
+        <ToggleGroup.Root type="single" variant="outline" size="sm" class="w-full" bind:value={() => def.interpolation, (v) => v && store.update(def.id, { interpolation: v as Interpolation })}>
+          {#each INTERPOLATIONS as it}
+            <ToggleGroup.Item value={it.value} class="flex-1">{it.label}</ToggleGroup.Item>
+          {/each}
+        </ToggleGroup.Root>
         <Field.FieldDescription>How neighbouring Tailwind scales are blended around the wheel.</Field.FieldDescription>
       </Field.Field>
 
