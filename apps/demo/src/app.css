@@ -144,3 +144,13 @@ html {
 html {
   scroll-behavior: smooth;
 }
+
+/* light theme: soften big bold headings and icons */
+@layer components {
+  :root:not(.dark) :is(.display, h1, h2, h3) {
+    color: color-mix(in oklab, var(--foreground) 80%, transparent);
+  }
+  :root:not(.dark) svg {
+    opacity: 0.8;
+  }
+}

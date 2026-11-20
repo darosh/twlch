@@ -14,6 +14,8 @@ export const DATASETS: Dataset[] = ["chromatic", "neutral", "fourier", "epicycle
 /** The library's dataset and (optional) generator behind a UI dataset. */
 export const libDataset = (d: Dataset): { dataset: DatasetName; generator?: Generator } =>
   d === "fourier" || d === "epicycles" ? { dataset: "chromatic", generator: d } : { dataset: d };
+/** Custom scales are shared by the chromatic and computed datasets; neutral keeps its own. */
+const poolOf = (d: Dataset) => (d === "neutral" ? "neutral" : "chromatic");
 /** Library options that select a dataset. */
 const datasetOpts = (d: Dataset) => {
   const { dataset, generator } = libDataset(d);
@@ -105,8 +107,8 @@ const hexOf = (n: number) => "#" + n.toString(16).padStart(6, "0");
 let counter = 0;
 const nextId = () => `c${++counter}`;
 
-function fromResult(def: CustomDef, r: TwlchResult): Scale {
-  const { generator } = libDataset(def.dataset);
+function fromResult(def: CustomDef, r: TwlchResult, dataset: Dataset): Scale {
+  const { generator } = libDataset(dataset);
   const family: Family = {
     name: def.name,
     l: r.swatches.map((s) => s.l),
@@ -174,8 +176,8 @@ class Store {
     // Editing one scale shouldn't regenerate the other 50: reuse results whose parameters didn't change.
     const seen = new Map<string, { key: string; scale: Scale }>();
     for (const def of this.custom) {
-      if (def.dataset !== this.dataset) continue; // scales belong to the dataset they were made in
-      const key = JSON.stringify(def);
+      if (poolOf(def.dataset) !== poolOf(this.dataset)) continue; // chromatic and computed datasets share their custom scales
+      const key = this.dataset + JSON.stringify(def);
       const hit = this.memo.get(def.id);
       if (hit && hit.key === key) {
         seen.set(def.id, hit);
@@ -184,7 +186,7 @@ class Store {
       }
       try {
         const base = {
-          ...datasetOpts(def.dataset),
+          ...datasetOpts(this.dataset),
           delta: def.delta,
           interpolation: def.interpolation,
         };
@@ -192,7 +194,7 @@ class Store {
           def.kind === "color"
             ? twlch(def.color, { ...base, mode: def.mode, shade: def.shade ?? undefined })
             : twlchHue(def.hue, base);
-        const scale = fromResult(def, r);
+        const scale = fromResult(def, r, this.dataset);
         seen.set(def.id, { key, scale });
         own.push(scale);
       } catch {
@@ -256,7 +258,7 @@ class Store {
   }
 
   /** Editable scales that belong to the dataset on screen. */
-  mine = $derived(this.custom.filter((d) => d.dataset === this.dataset));
+  mine = $derived(this.custom.filter((d) => poolOf(d.dataset) === poolOf(this.dataset)));
 
   addColor(color = "#3b82f6", interpolation: Interpolation = "smooth") {
     const def: CustomDef = {
@@ -295,7 +297,9 @@ class Store {
   /** Insert `n` scales between every pair of neighbouring dataset scales (replacing earlier bulk ones). */
   bulkAdd(n: number, interpolation: Interpolation = "smooth") {
     const ds = this.dataset;
-    this.custom = this.custom.filter((d) => !(d.kind === "hue" && d.bulk && d.dataset === ds));
+    this.custom = this.custom.filter(
+      (d) => !(d.kind === "hue" && d.bulk && poolOf(d.dataset) === poolOf(ds)),
+    );
     const { dataset, generator } = libDataset(ds);
     const anchors = twlchAnchors(dataset, interpolation, generator);
     const taken = this.names();
@@ -339,7 +343,7 @@ class Store {
           next.kind === "color"
             ? next.color
             : twlchHue(next.hue, {
-                ...datasetOpts(next.dataset),
+                ...datasetOpts(this.dataset),
                 interpolation: next.interpolation,
               }).swatches[5].hex;
         next.name = uniqueName(colorName(probe), this.names(id));

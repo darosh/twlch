@@ -5,8 +5,8 @@ import { pchip } from "@darosh/twlch";
 import { fmt, niceMax } from "./color.ts";
 import { C_MIN, denseOf, sampleCurve, seriesOf } from "./plot.ts";
 import type { PlotOptions } from "./plot.ts";
+import { PALETTES } from "./palette.ts";
 
-const BG = 0x0f1115;
 const HEIGHT = 5; // world height of L = 1
 const RADIUS = 3.2; // world radius of the outermost chroma ring
 
@@ -74,7 +74,7 @@ export class Plot3D {
     this.ready = this.app
       .init({
         resizeTo: host,
-        background: BG,
+        background: PALETTES[this.opts.theme].bg,
         antialias: true,
         autoDensity: true,
         resolution: window.devicePixelRatio,
@@ -104,12 +104,16 @@ export class Plot3D {
   }
 
   update(opts: Partial<PlotOptions>) {
-    const rebuild = ["families", "space", "smooth", "guides", "ring"].some(
+    const rebuild = ["families", "space", "smooth", "guides", "ring", "theme", "spokes"].some(
       (k) =>
         k in opts &&
         (opts as Record<string, unknown>)[k] !== (this.opts as Record<string, unknown>)[k],
     );
     Object.assign(this.opts, opts);
+    if (opts.theme && this.ready)
+      void this.ready.then(
+        () => (this.app.renderer.background.color = PALETTES[this.opts.theme].bg),
+      );
     if (rebuild) {
       this.needsBuild = true;
       this.needsPick = true;
@@ -203,7 +207,8 @@ export class Plot3D {
     this.scale = RADIUS / niceC;
 
     // axes: L axis, hue spokes, chroma rings on the L=0 floor
-    const grid = 0x2a3241;
+    const pal = PALETTES[this.opts.theme];
+    const grid = pal.grid3d;
     this.lineMesh([0, 0, 0, 0, HEIGHT, 0], grid);
     for (let h = 0; h < 360; h += 90) this.lineMesh([0, 0, 0, ...this.pos(0, niceC, h)], grid);
     const rings = 3;
@@ -216,7 +221,7 @@ export class Plot3D {
     const label = (text: string, pos: [number, number, number]) => {
       const t = new Text({
         text,
-        style: { fill: 0x7d8899, fontSize: 11, fontFamily: "system-ui, sans-serif" },
+        style: { fill: pal.label3d, fontSize: 11, fontFamily: "system-ui, sans-serif" },
       });
       t.anchor.set(0.5);
       this.app.stage.addChild(t);
@@ -229,11 +234,20 @@ export class Plot3D {
     label(`${short.c} ${fmt(niceC, niceC)}`, this.pos(0, niceC, 45));
 
     if (this.opts.guides) {
-      const guides = 0x555555;
-
-      for (let k = 0; k < this.opts.shades.length; k++) {
-        const pts = this.ringPoints(k);
-        if (pts.length) this.lineMesh(pts, guides);
+      const guides = pal.guide;
+      if (this.opts.spokes) {
+        // neutral families have no wheel shape: join each point to the lightness axis instead
+        const pts: number[] = [];
+        for (const f of fams) {
+          for (let k = 0; k < this.opts.shades.length; k++)
+            pts.push(...this.pos(f.l[k], f.c[k], f.h[k]), ...this.pos(f.l[k], 0, 0));
+        }
+        if (pts.length) this.lineMesh(pts, guides, false);
+      } else {
+        for (let k = 0; k < this.opts.shades.length; k++) {
+          const pts = this.ringPoints(k);
+          if (pts.length) this.lineMesh(pts, guides);
+        }
       }
     }
 
@@ -276,7 +290,8 @@ export class Plot3D {
     const hover = this.opts.hover;
     for (const e of this.entries) {
       const on = e.name === hover;
-      e.lineMat.baseColor = hover && !on ? mix(e.color, BG, 0.75) : e.color;
+      e.lineMat.baseColor =
+        hover && !on ? mix(e.color, PALETTES[this.opts.theme].bg, 0.75) : e.color;
       const k = on ? 1.9 : hover ? 0.6 : 1;
       for (const s of e.spheres) s.scale.set(k, k, k);
     }

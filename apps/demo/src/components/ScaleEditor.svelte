@@ -12,6 +12,8 @@
   import { copy } from "$lib/copy.ts";
   import { INTERPOLATIONS } from "$lib/interpolation.ts";
   import type { Interpolation } from "@darosh/twlch";
+  import CopyMenu from "./CopyMenu.svelte";
+  import Tip from "./Tip.svelte";
   import { isValidColor, store, swatchValue } from "$lib/store.svelte.ts";
 
   const def = $derived(store.selectedDef);
@@ -165,10 +167,12 @@
     {/if}
 
     <div class="flex gap-2">
-      <Button variant="secondary" class="flex-1" onclick={() => copy(scale.hex.map((_, i) => swatchValue(scale, i, store.copyFormat)).join("\n"), `Copied ${scale.name}`)}>
-        <CopyIcon data-icon="inline-start" /> Copy scale
-      </Button>
-      <Button variant="destructive" size="icon" aria-label="Delete scale" onclick={() => store.remove(def.id)}><TrashIcon /></Button>
+      <CopyMenu scales={[scale]} label="Copy this scale" text="Copy scale" />
+      <Tip label="Delete scale">
+        {#snippet children(tp)}
+          <Button {...tp} variant="destructive" size="icon" aria-label="Delete scale" onclick={() => store.remove(def.id)}><TrashIcon /></Button>
+        {/snippet}
+      </Tip>
     </div>
   {/if}
 </div>

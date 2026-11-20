@@ -9,6 +9,7 @@
   import { Plot3D } from "$lib/plot3d.ts";
   import { hueGaps, SPACES } from "$lib/spaces.ts";
   import { store } from "$lib/store.svelte.ts";
+  import { theme } from "$lib/theme.svelte.ts";
 
   type Plot = { update(o: Partial<PlotOptions>): void; destroy(): Promise<void> };
   let { kind, title, blurb }: { kind: "2d" | "3d"; title: string; blurb: string } = $props();
@@ -24,6 +25,8 @@
     smooth: store.smooth,
     guides: store.guides,
     ring: store.ringFamilies,
+    spokes: store.dataset === "neutral",
+    theme: theme.value,
   });
 
   $effect(() => {
@@ -93,7 +96,7 @@
   {/if}
   <div
     bind:this={host}
-    class="relative overflow-hidden rounded-xl border bg-[#0f1115] {kind === '2d' ? 'h-[560px]' : 'h-[600px]'}"
+    class="relative overflow-hidden rounded-xl border bg-[#fafafa] dark:bg-[#0f1115] {kind === '2d' ? 'h-[560px]' : 'h-[600px]'}"
   ></div>
   {#if kind === "3d"}
     <p class="text-xs text-muted-foreground">Drag to orbit · hold <kbd class="rounded border px-1 font-mono text-[11px]">Shift</kbd> and scroll to zoom · right-drag to pan</p>

@@ -10,12 +10,28 @@ const slug = (name: string) =>
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "") || "color";
 
-/** One scale per line: `name: 50 value, 100 value, ...` */
+/** The name on its own line, then one color per line; scales separated by a blank line. */
 export function asText(scales: Scale[], format: Format): string {
+  return scales
+    .map((s) => [s.name, ...tailwind.shades.map((_, i) => swatchValue(s, i, format))].join("\n"))
+    .join("\n\n");
+}
+
+const ident = (name: string) => {
+  const id = name
+    .split(/[^A-Za-z0-9]+/)
+    .filter(Boolean)
+    .map((w, i) => (i === 0 ? w.charAt(0).toLowerCase() : w.charAt(0).toUpperCase()) + w.slice(1))
+    .join("");
+  return /^[0-9]/.test(id) || !id ? `c${id}` : id;
+};
+
+/** `const name = ['color', ...];` per scale. */
+export function asJs(scales: Scale[], format: Format): string {
   return scales
     .map(
       (s) =>
-        `${s.name}: ${tailwind.shades.map((sh, i) => `${sh} ${swatchValue(s, i, format)}`).join(", ")}`,
+        `const ${ident(s.name)} = [${tailwind.shades.map((_, i) => `'${swatchValue(s, i, format)}'`).join(", ")}];`,
     )
     .join("\n");
 }
@@ -39,3 +55,10 @@ export function asJson(scales: Scale[], format: Format): string {
   }
   return JSON.stringify(out, null, 2);
 }
+
+export const EXPORTERS = [
+  { label: "As text", fn: asText },
+  { label: "As JS arrays", fn: asJs },
+  { label: "As CSS variables (Tailwind)", fn: asCss },
+  { label: "As JSON", fn: asJson },
+];
