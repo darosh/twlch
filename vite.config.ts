@@ -9,13 +9,13 @@ export default defineConfig({
   },
   pack: [
     {
-      entry: "src/index.ts",
+      entry: ["src/index.ts", "src/fourier.ts", "src/epicycles.ts", "src/browser.ts"],
       dts: true,
       exports: false,
     },
-    // Standalone browser builds with colorjs.io inlined, for CDNs and <script> tags.
+    // Standalone browser builds. ESM inlines colorjs.io; the IIFE (<script>) builds use its `Color` global.
     {
-      entry: { "twlch.browser": "src/index.ts" },
+      entry: { "twlch.browser": "src/browser.ts" },
       format: "esm",
       platform: "browser",
       minify: true,
@@ -24,18 +24,67 @@ export default defineConfig({
       deps: { alwaysBundle: ["colorjs.io"] },
     },
     {
-      entry: { "twlch.browser": "src/index.ts" },
+      entry: { "twlch.browser": "src/browser.ts" },
       format: "iife",
       globalName: "twlch",
       platform: "browser",
       minify: true,
       dts: false,
       clean: false,
+      // <script> builds expect colorjs.io's own global build (https://colorjs.io/dist/color.global.js)
+      deps: { neverBundle: ["colorjs.io"] },
+      outputOptions: { globals: { "colorjs.io": "Color" } },
+    },
+    // Standalone single-model builds: no Tailwind data tables, a fraction of the size.
+    {
+      entry: { "twlch.fourier.browser": "src/fourier.ts" },
+      format: "esm",
+      platform: "browser",
+      minify: true,
+      dts: false,
+      clean: false,
       deps: { alwaysBundle: ["colorjs.io"] },
+    },
+    {
+      entry: { "twlch.fourier.browser": "src/fourier.ts" },
+      format: "iife",
+      globalName: "twlchFourier",
+      platform: "browser",
+      minify: true,
+      dts: false,
+      clean: false,
+      // <script> builds expect colorjs.io's own global build (https://colorjs.io/dist/color.global.js)
+      deps: { neverBundle: ["colorjs.io"] },
+      outputOptions: { globals: { "colorjs.io": "Color" } },
+    },
+    {
+      entry: { "twlch.epicycles.browser": "src/epicycles.ts" },
+      format: "esm",
+      platform: "browser",
+      minify: true,
+      dts: false,
+      clean: false,
+      deps: { alwaysBundle: ["colorjs.io"] },
+    },
+    {
+      entry: { "twlch.epicycles.browser": "src/epicycles.ts" },
+      format: "iife",
+      globalName: "twlchEpicycles",
+      platform: "browser",
+      minify: true,
+      dts: false,
+      clean: false,
+      // <script> builds expect colorjs.io's own global build (https://colorjs.io/dist/color.global.js)
+      deps: { neverBundle: ["colorjs.io"] },
+      outputOptions: { globals: { "colorjs.io": "Color" } },
     },
   ],
   fmt: {
-    ignorePatterns: ["src/tailwind.generated.ts"],
+    ignorePatterns: [
+      "src/tailwind.generated.ts",
+      "src/models/fourier.generated.ts",
+      "src/models/epicycles.generated.ts",
+    ],
   },
   lint: {
     ignorePatterns: ["apps/demo/src/lib/components/ui/**"],

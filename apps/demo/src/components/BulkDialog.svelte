@@ -6,14 +6,14 @@
   import * as ToggleGroup from "$lib/components/ui/toggle-group";
   import * as Select from "$lib/components/ui/select";
   import { INTERPOLATIONS, interpolationLabel } from "$lib/interpolation.ts";
-  import { store } from "$lib/store.svelte.ts";
+  import { libDataset, store } from "$lib/store.svelte.ts";
   import type { Interpolation } from "@darosh/twlch";
 
   let { open = $bindable(false) }: { open: boolean } = $props();
   let n = $state("1");
   let interpolation = $state<Interpolation>("smooth");
 
-  const pairs = $derived(twlchAnchors(store.dataset, interpolation).length);
+  const pairs = $derived(twlchAnchors(libDataset(store.dataset).dataset, interpolation, libDataset(store.dataset).generator).length);
   const total = $derived(pairs * Number(n));
 
   function apply() {

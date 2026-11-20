@@ -2,13 +2,29 @@ import Color from "colorjs.io";
 import { tailwind } from "@darosh/twlch";
 import type { Family } from "@darosh/twlch";
 import { twlch, twlchAnchors, twlchHue } from "@darosh/twlch";
-import type { DatasetName, Interpolation, TwlchResult } from "@darosh/twlch";
+import type { DatasetName, Generator, Interpolation, TwlchResult } from "@darosh/twlch";
 import { colorName, uniqueName } from "./custom.ts";
 import { oklchToHex } from "./color.ts";
 import { SPACES, convertFamilies } from "./spaces.ts";
 import type { PlotFamily, SpaceId } from "./spaces.ts";
 
-type DefBase = { dataset: DatasetName; interpolation: Interpolation };
+/** Datasets in the UI. "fourier" and "epicycles" are dummy ones: the chromatic scales computed by a fitted model. */
+export type Dataset = DatasetName | Generator;
+export const DATASETS: Dataset[] = ["chromatic", "neutral", "fourier", "epicycles"];
+/** The library's dataset and (optional) generator behind a UI dataset. */
+export const libDataset = (d: Dataset): { dataset: DatasetName; generator?: Generator } =>
+  d === "fourier" || d === "epicycles" ? { dataset: "chromatic", generator: d } : { dataset: d };
+/** Library options that select a dataset. */
+const datasetOpts = (d: Dataset) => {
+  const { dataset, generator } = libDataset(d);
+  return generator === "fourier"
+    ? { dataset, fourier: true }
+    : generator === "epicycles"
+      ? { dataset, epicycles: true }
+      : { dataset };
+};
+
+type DefBase = { dataset: Dataset; interpolation: Interpolation };
 export type CustomDef = DefBase &
   (
     | {
@@ -67,7 +83,7 @@ function fromResult(def: CustomDef, r: TwlchResult): Scale {
 }
 
 class Store {
-  dataset = $state<DatasetName>("chromatic");
+  dataset = $state<Dataset>("chromatic");
   space = $state<SpaceId>("oklch");
   smooth = $state(true);
   guides = $state(true);
@@ -82,7 +98,20 @@ class Store {
 
   /** All scales sorted around the hue wheel. */
   scales = $derived.by<Scale[]>(() => {
-    const stock = tailwind[this.dataset].map((f): Scale => ({
+    // fourier / epicycles: the model evaluated at each chromatic family's hue, to compare against the real ones
+    const source =
+      this.dataset === "fourier" || this.dataset === "epicycles"
+        ? tailwind.chromatic.map((f): Family => {
+            const r = twlchHue(f.h[5], datasetOpts(this.dataset));
+            return {
+              name: f.name,
+              l: r.swatches.map((s) => s.l),
+              c: r.swatches.map((s) => s.c),
+              h: r.swatches.map((s) => s.h),
+            };
+          })
+        : tailwind[this.dataset];
+    const stock = source.map((f): Scale => ({
       id: "tw:" + f.name,
       name: f.name,
       kind: "tailwind",
@@ -103,7 +132,11 @@ class Store {
         continue;
       }
       try {
-        const base = { dataset: def.dataset, delta: def.delta, interpolation: def.interpolation };
+        const base = {
+          ...datasetOpts(def.dataset),
+          delta: def.delta,
+          interpolation: def.interpolation,
+        };
         const r =
           def.kind === "color"
             ? twlch(def.color, { ...base, mode: def.mode, shade: def.shade ?? undefined })
@@ -161,7 +194,7 @@ class Store {
   }
 
   addHue(hue: number, bulk = false, interpolation: Interpolation = "smooth") {
-    const r = twlchHue(hue, { dataset: this.dataset, interpolation });
+    const r = twlchHue(hue, { ...datasetOpts(this.dataset), interpolation });
     const def: CustomDef = {
       id: nextId(),
       kind: "hue",
@@ -181,14 +214,15 @@ class Store {
   bulkAdd(n: number, interpolation: Interpolation = "smooth") {
     const ds = this.dataset;
     this.custom = this.custom.filter((d) => !(d.kind === "hue" && d.bulk && d.dataset === ds));
-    const anchors = twlchAnchors(ds, interpolation);
+    const { dataset, generator } = libDataset(ds);
+    const anchors = twlchAnchors(dataset, interpolation, generator);
     const taken = this.names();
     const defs: CustomDef[] = [];
     anchors.forEach((a, i) => {
       const next = i + 1 < anchors.length ? anchors[i + 1] : anchors[0] + 360;
       for (let k = 1; k <= n; k++) {
         const hue = (a + (k * (next - a)) / (n + 1)) % 360;
-        const r = twlchHue(hue, { dataset: ds, interpolation });
+        const r = twlchHue(hue, { ...datasetOpts(ds), interpolation });
         const name = uniqueName(colorName(r.swatches[5].hex), taken);
         taken.add(name);
         defs.push({
@@ -222,8 +256,10 @@ class Store {
         const probe =
           next.kind === "color"
             ? next.color
-            : twlchHue(next.hue, { dataset: next.dataset, interpolation: next.interpolation })
-                .swatches[5].hex;
+            : twlchHue(next.hue, {
+                ...datasetOpts(next.dataset),
+                interpolation: next.interpolation,
+              }).swatches[5].hex;
         next.name = uniqueName(colorName(probe), this.names(id));
       }
       if (patch.name !== undefined) next.autoName = false;

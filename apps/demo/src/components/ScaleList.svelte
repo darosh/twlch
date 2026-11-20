@@ -6,7 +6,7 @@
   import * as Popover from "$lib/components/ui/popover";
   import * as ToggleGroup from "$lib/components/ui/toggle-group";
   import { Separator } from "$lib/components/ui/separator";
-  import { store } from "$lib/store.svelte.ts";
+  import { DATASETS, store } from "$lib/store.svelte.ts";
   import BulkDialog from "./BulkDialog.svelte";
 
   let menu = $state(false);
@@ -58,7 +58,7 @@
   <div class="flex flex-col gap-1.5 px-4 pb-3">
 <!--    <Label class="text-xs text-muted-foreground">dataset</Label>-->
     <ToggleGroup.Root type="single" variant="outline" size="sm" class="w-full" bind:value={store.dataset}>
-      {#each ["chromatic", "neutral"] as const as d}
+      {#each DATASETS as d}
         <ToggleGroup.Item value={d} class="flex-1">{d}</ToggleGroup.Item>
       {/each}
     </ToggleGroup.Root>

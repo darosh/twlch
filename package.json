@@ -36,8 +36,24 @@
       "default": "./dist/index.mjs"
     },
     "./browser": {
-      "types": "./dist/index.d.mts",
+      "types": "./dist/browser.d.mts",
       "default": "./dist/twlch.browser.js"
+    },
+    "./fourier": {
+      "types": "./dist/fourier.d.mts",
+      "default": "./dist/fourier.mjs"
+    },
+    "./fourier/browser": {
+      "types": "./dist/fourier.d.mts",
+      "default": "./dist/twlch.fourier.browser.js"
+    },
+    "./epicycles": {
+      "types": "./dist/epicycles.d.mts",
+      "default": "./dist/epicycles.mjs"
+    },
+    "./epicycles/browser": {
+      "types": "./dist/epicycles.d.mts",
+      "default": "./dist/twlch.epicycles.browser.js"
     },
     "./package.json": "./package.json"
   },
@@ -52,6 +68,8 @@
     "check": "vp check",
     "extract": "node scripts/extract.ts",
     "loo": "node scripts/loo.ts",
+    "fit:fourier": "node scripts/fit-fourier.ts --loo --write",
+    "fit:epicycles": "node scripts/fit-epicycles.ts --loo --write",
     "ready": "vp check && vp test && vp pack && vp run @twlch/demo#build",
     "deploy": "bash scripts/deploy.sh",
     "prepare": "vp config",

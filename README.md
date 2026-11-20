@@ -29,9 +29,10 @@ Any color [colorjs.io](https://colorjs.io) can parse works as input. The result 
 
 ### In the browser, without a bundler
 
-`dist/twlch.browser.*` bundles colorjs.io (about 38 kB gzipped) for CDNs and plain pages.
+The `<script>` build (`dist/twlch.browser.iife.js`, about 10 kB gzipped) expects colorjs.io's own global build, which provides `Color`. The ES module build (`dist/twlch.browser.js`) bundles colorjs.io (about 38 kB gzipped).
 
 ```html
+<script src="https://colorjs.io/dist/color.global.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@darosh/twlch"></script>
 <script>
   twlch.twlch("#3b82f6").swatches.map((s) => s.hex);
@@ -43,6 +44,24 @@ Any color [colorjs.io](https://colorjs.io) can parse works as input. The result 
 ```
 
 With a bundler, keep using `import { twlch } from "@darosh/twlch"`; colorjs.io is then shared with your app.
+
+### Computed scales (`fourier`, `epicycles`)
+
+Instead of blending the 17 Tailwind families, the scale can be computed from a fitted model of the whole palette, a smooth function of hue. Pass `fourier: true` or `epicycles: true`:
+
+```ts
+twlch("#3b82f6", { fourier: true });
+twlchHue(280, { epicycles: true });
+```
+
+|                   | numbers | mean ΔE | max ΔE | what it is                                                                                           |
+| ----------------- | ------- | ------- | ------ | ---------------------------------------------------------------------------------------------------- |
+| `fourier: true`   | ~870    | 0.01    | 0.02   | one Fourier series in hue per shade for lightness, plus a chroma bump and per-shade residuals        |
+| `epicycles: true` | ~240    | 0.8     | 2.3    | a few shade patterns, each carried around the hue wheel by a handful of rotating circles (epicycles) |
+
+ΔE is the OKLab distance ×100 at the 17 Tailwind hues. The Tailwind lightness is hand-tuned and too jagged for a short formula, so a smaller model costs visible error. Refit with `pnpm fit:fourier` (`--digits` sets the written precision, default 4) or `pnpm fit:epicycles` (a greedy search then a genetic algorithm choose the circles).
+
+`@darosh/twlch/fourier` and `@darosh/twlch/epicycles` are single-model entries with no Tailwind data tables; `dist/twlch.fourier.browser.iife.js` (global `twlchFourier`) and `dist/twlch.epicycles.browser.iife.js` (global `twlchEpicycles`) are their `<script>` builds. The `dist/twlch.browser.*` builds contain neither model.
 
 ### Custom shades
 
