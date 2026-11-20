@@ -23,6 +23,7 @@
     hover: store.hover,
     smooth: store.smooth,
     guides: store.guides,
+    ring: store.ringFamilies,
   });
 
   $effect(() => {

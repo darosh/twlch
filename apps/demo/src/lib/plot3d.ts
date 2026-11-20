@@ -104,7 +104,7 @@ export class Plot3D {
   }
 
   update(opts: Partial<PlotOptions>) {
-    const rebuild = ["families", "space", "smooth", "guides"].some(
+    const rebuild = ["families", "space", "smooth", "guides", "ring"].some(
       (k) =>
         k in opts &&
         (opts as Record<string, unknown>)[k] !== (this.opts as Record<string, unknown>)[k],
@@ -155,6 +155,15 @@ export class Plot3D {
     const n = pts.length;
     if (n < 3) return [];
     const out: number[] = [];
+    if (this.opts.smooth && this.opts.ring) {
+      // the model is a function of hue: sample it directly, no interpolation needed
+      const r = this.opts.ring;
+      for (let i = 0; i <= r.length; i++) {
+        const f = r[i % r.length];
+        out.push(...this.pos(f.l[shade], f.c[shade], f.h[shade]));
+      }
+      return out;
+    }
     if (!this.opts.smooth) {
       for (let i = 0; i <= n; i++) {
         const p = pts[i % n];

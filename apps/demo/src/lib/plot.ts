@@ -19,6 +19,11 @@ export type PlotOptions = {
   smooth: boolean;
   /** 3D only: closed guide curves joining the same shade across all families. */
   guides: boolean;
+  /**
+   * 3D only: the scale of a fitted model sampled densely around the hue wheel. When set (and `smooth`
+   * is on) the guide curves follow these exact values instead of a PCHIP through the families.
+   */
+  ring: PlotFamily[] | null;
 };
 
 const CHANNELS: { key: Channel }[] = [{ key: "l" }, { key: "c" }, { key: "h" }];

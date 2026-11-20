@@ -161,6 +161,22 @@ class Store {
       this.spaceInfo,
     ),
   );
+  /** For fourier / epicycles: the model sampled every 2° of hue, so smooth 3D guides use its exact values. */
+  ringFamilies = $derived.by<PlotFamily[] | null>(() => {
+    if (this.dataset !== "fourier" && this.dataset !== "epicycles") return null;
+    const opts = datasetOpts(this.dataset);
+    const sampled: Family[] = [];
+    for (let a = 0; a < 360; a += 2) {
+      const r = twlchHue(a, opts);
+      sampled.push({
+        name: `h${a}`,
+        l: r.swatches.map((s) => s.l),
+        c: r.swatches.map((s) => s.c),
+        h: r.swatches.map((s) => s.h),
+      });
+    }
+    return convertFamilies(sampled, this.spaceInfo);
+  });
   /** Curve colour per scale: its base colour (shade 500), so lines match what the swatches show. */
   colors = $derived(
     Object.fromEntries(this.scales.map((s) => [s.name, parseInt(s.hex[5].slice(1), 16)])) as Record<
