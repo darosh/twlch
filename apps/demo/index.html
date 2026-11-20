@@ -1,6 +1,13 @@
 <!doctype html>
 <html lang="en" class="dark">
   <head>
+    <script>
+      try {
+        var t = localStorage.getItem("twlch-theme");
+        if (t !== "light" && t !== "dark") t = "dark";
+        document.documentElement.classList.toggle("dark", t === "dark");
+      } catch (e) {}
+    </script>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>twlch – Tailwind scales interpolation</title>

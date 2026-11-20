@@ -35,7 +35,7 @@
       <h2 class="display text-2xl mb-4">Swatches</h2>
       <p class="text-sm text-muted-foreground">Sorted by hue. Click a swatch to copy its value, a name to copy the whole scale, one color per line.</p>
     </div>
-    <ToggleGroup.Root type="single" variant="outline" size="sm" bind:value={store.copyFormat} aria-label="Copy format">
+    <ToggleGroup.Root type="single" variant="outline" size="sm" bind:value={() => store.copyFormat, (v) => v && (store.copyFormat = v as "hex" | "oklch")} aria-label="Copy format">
       <ToggleGroup.Item value="oklch">oklch</ToggleGroup.Item>
       <ToggleGroup.Item value="hex">hex</ToggleGroup.Item>
     </ToggleGroup.Root>
@@ -50,7 +50,7 @@
         {/each}
       </div>
     </div>
-    {#each store.scales as s (s.id)}
+    {#each store.visible as s (s.id)}
       <div
         class="flex items-center gap-1 rounded-md py-0.5 transition-opacity {store.hover && store.hover !== s.name ? 'opacity-40' : ''} {store.selectedId === s.id ? 'bg-muted/60' : ''}"
       >

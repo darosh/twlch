@@ -9,6 +9,7 @@
   import { Plot3D } from "$lib/plot3d.ts";
   import { hueGaps, SPACES } from "$lib/spaces.ts";
   import { store } from "$lib/store.svelte.ts";
+  import { theme } from "$lib/theme.svelte.ts";
 
   type Plot = { update(o: Partial<PlotOptions>): void; destroy(): Promise<void> };
   let { kind, title, blurb }: { kind: "2d" | "3d"; title: string; blurb: string } = $props();
@@ -23,6 +24,9 @@
     hover: store.hover,
     smooth: store.smooth,
     guides: store.guides,
+    ring: store.ringFamilies,
+    spokes: store.dataset === "neutral",
+    theme: theme.value,
   });
 
   $effect(() => {
@@ -44,8 +48,9 @@
 
   // How evenly the Tailwind families sit around the hue wheel in this space (lower CV = more even).
   const gaps = $derived.by(() => {
-    if (kind !== "2d" || store.dataset !== "chromatic") return null;
-    const own = store.plotFamilies.filter((_, i) => store.scales[i].kind === "tailwind");
+    if (kind !== "2d" || store.dataset === "neutral") return null;
+    const own = store.plotFamilies.filter((_, i) => store.visible[i].kind === "tailwind");
+    if (own.length < 2) return null;
     const all = tailwind.shades.map((_, i) => hueGaps(own, i));
     return { mean: all.reduce((a, g) => a + g.cv, 0) / all.length, s500: all[5], s950: all[10] };
   });
@@ -91,7 +96,7 @@
   {/if}
   <div
     bind:this={host}
-    class="relative overflow-hidden rounded-xl border bg-[#0f1115] {kind === '2d' ? 'h-[560px]' : 'h-[600px]'}"
+    class="relative overflow-hidden rounded-xl border bg-[#fafafa] dark:bg-[#0f1115] {kind === '2d' ? 'h-[560px]' : 'h-[600px]'}"
   ></div>
   {#if kind === "3d"}
     <p class="text-xs text-muted-foreground">Drag to orbit · hold <kbd class="rounded border px-1 font-mono text-[11px]">Shift</kbd> and scroll to zoom · right-drag to pan</p>

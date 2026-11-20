@@ -1,6 +1,6 @@
 {
   "name": "@darosh/twlch",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Tailwind scales interpolation",
   "keywords": [
     "color",
@@ -28,16 +28,32 @@
   "type": "module",
   "sideEffects": false,
   "types": "./dist/index.d.mts",
-  "unpkg": "./dist/twlch.browser.iife.js",
-  "jsdelivr": "./dist/twlch.browser.iife.js",
+  "unpkg": "./dist/browser/twlch.global.min.js",
+  "jsdelivr": "./dist/browser/twlch.global.min.js",
   "exports": {
     ".": {
       "types": "./dist/index.d.mts",
       "default": "./dist/index.mjs"
     },
     "./browser": {
-      "types": "./dist/index.d.mts",
-      "default": "./dist/twlch.browser.js"
+      "types": "./dist/index-browser.d.mts",
+      "default": "./dist/browser/twlch.bundle.module.min.js"
+    },
+    "./fourier": {
+      "types": "./dist/index-fourier.d.mts",
+      "default": "./dist/index-fourier.mjs"
+    },
+    "./fourier/browser": {
+      "types": "./dist/index-fourier.d.mts",
+      "default": "./dist/browser/twlch-fourier.bundle.module.min.js"
+    },
+    "./epicycles": {
+      "types": "./dist/index-epicycles.d.mts",
+      "default": "./dist/index-epicycles.mjs"
+    },
+    "./epicycles/browser": {
+      "types": "./dist/index-epicycles.d.mts",
+      "default": "./dist/browser/twlch-epicycles.bundle.module.min.js"
     },
     "./package.json": "./package.json"
   },
@@ -52,6 +68,8 @@
     "check": "vp check",
     "extract": "node scripts/extract.ts",
     "loo": "node scripts/loo.ts",
+    "fit:fourier": "node scripts/fit-fourier.ts --loo --write",
+    "fit:epicycles": "node scripts/fit-epicycles.ts --loo --write",
     "ready": "vp check && vp test && vp pack && vp run @twlch/demo#build",
     "deploy": "bash scripts/deploy.sh",
     "prepare": "vp config",

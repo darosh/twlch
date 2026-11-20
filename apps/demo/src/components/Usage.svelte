@@ -40,6 +40,14 @@
       { label: 'interpolation: "smooth"', colors: all(twlch(blue, { interpolation: "smooth" })) },
       { label: 'interpolation: "linear"', colors: all(twlch(blue, { interpolation: "linear" })) },
     ],
+    computed: [
+      { label: "interpolated (default)", colors: all(twlch(blue)) },
+      { label: "fourier: true", colors: all(twlch(blue, { fourier: true })) },
+      { label: "epicycles: true", colors: all(twlch(blue, { epicycles: true })) },
+      { label: "twlchHue(250, { fourier: true })", colors: all(twlchHue(250, { fourier: true })) },
+      { label: "twlchHue(250, { epicycles: true })", colors: all(twlchHue(250, { epicycles: true })) },
+      { label: "shade(425), epicycles", colors: one(twlch(blue, { epicycles: true }).shade(425)) },
+    ],
     hue: [
       { label: "twlchHue(250)", colors: all(twlchHue(250)) },
       { label: "twlchHue(250, delta -0.2)", colors: all(twlchHue(250, { delta: -0.2 })) },
@@ -52,7 +60,7 @@
   <div class="mb-2">
     <h2 class="display text-2xl mb-4">Usage</h2>
     <p class="text-sm text-muted-foreground">
-      <code>twlch()</code> builds a 50–950 scale by interpolating Tailwind's hand-tuned OKLCH scales across the hue wheel. Lightness, chroma and hue drift all come from the neighbouring Tailwind families, so a new scale gets the same shape as a real one.
+      <code>twlch()</code> builds a 50–950 scale by interpolating Tailwind's hand-tuned OKLCH scales across the hue wheel. Lightness, chroma and hue drift all come from the neighbouring Tailwind families, so a new scale gets the same shape as a real one. The same scales can also be computed from fitted functions of shade and hue (<code>fourier</code>, <code>epicycles</code>), see Computed scales below.
     </p>
   </div>
 
@@ -86,7 +94,7 @@ scale.shade(425);       // { shade: 425, l, c, h, hex }
 Array.from({ length: 19 }, (_, i) => scale.shade(50 + i * 50).hex);`}
     />
     <Output rows={out.custom} />
-    <p class="text-sm text-muted-foreground">In-between shades follow the same smooth curves as the scale, in OKLCH. <code>l c h</code> are unclipped and <code>hex</code> is mapped to sRGB, so it lands between its neighbours (550 sits between 500 and 600).</p>
+    <p class="text-sm text-muted-foreground">In-between shades follow the same smooth curves as the scale, in OKLCH: a monotone cubic through the swatches, or, in the computed sets, the fitted function itself. <code>l c h</code> are unclipped and <code>hex</code> is mapped to sRGB, so it lands between its neighbours (550 sits between 500 and 600).</p>
   </div>
 
   <div class="flex flex-col gap-2">
@@ -135,6 +143,24 @@ twlch("#3b82f6", { dataset: myFamilies });`}
   </div>
 
   <div class="flex flex-col gap-2">
+    <h3 class="font-semibold">Computed scales</h3>
+    <Code
+      code={`import { twlch, twlchHue, epicyclesAt, fourierAt } from "@darosh/twlch";
+
+// Computed from a fitted function of shade and hue, instead of blending the Tailwind families.
+twlch("#3b82f6", { fourier: true });      // ~890 numbers, within dE 0.06 of Tailwind
+twlch("#3b82f6", { epicycles: true });    // ~210 numbers, a few rotating circles, dE ~0.9
+twlchHue(250, { fourier: true });
+
+// The functions themselves: any shade 50–950 and any hue, as { l, c, h } in OKLCH.
+epicyclesAt(425, 250);
+fourierAt(425, 250);`}
+    />
+    <Output rows={out.computed} />
+    <p class="text-sm text-muted-foreground">Both are generated as plain code (sums of cos and sin, no data tables), with shade as a real parameter. <code>@darosh/twlch/fourier</code> and <code>@darosh/twlch/epicycles</code> are single-model entries without the Tailwind data. In a computed set <code>scale.shade(n)</code> reads the function directly, except with a non-zero <code>delta</code>, which falls back to the monotone cubic.</p>
+  </div>
+
+  <div class="flex flex-col gap-2">
     <h3 class="font-semibold">Scales without a color</h3>
     <Code
       code={`import { twlchHue, twlchAnchors } from "@darosh/twlch";
@@ -156,6 +182,7 @@ twlchHue(between);`}
       <li>Each family is placed on the wheel by its shade-500 hue. For every shade, lightness, chroma and hue drift are interpolated around the wheel with a periodic curve, so the result never overshoots the data.</li>
       <li>Hue drift is stored per shade, so the curve follows Tailwind's hue stretch, such as the widening green–yellow gap in the darkest shades.</li>
       <li>"match" shifts lightness, hue and chroma toward your color with a smooth falloff, and leaves 50 and 950 on the dataset.</li>
+      <li>The computed sets replace the interpolation by a fitted function: <code>fourier</code> is a Fourier series in hue per shade, <code>epicycles</code> a few shade patterns carried around the wheel by rotating circles; both are smooth in shade as well.</li>
     </ul>
 
     <h4 class="mt-2 font-semibold">Acknowledgements</h4>

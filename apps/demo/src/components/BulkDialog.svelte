@@ -4,16 +4,15 @@
   import { Button } from "$lib/components/ui/button";
   import * as Dialog from "$lib/components/ui/dialog";
   import * as ToggleGroup from "$lib/components/ui/toggle-group";
-  import * as Select from "$lib/components/ui/select";
-  import { INTERPOLATIONS, interpolationLabel } from "$lib/interpolation.ts";
-  import { store } from "$lib/store.svelte.ts";
+  import { INTERPOLATIONS } from "$lib/interpolation.ts";
+  import { libDataset, store } from "$lib/store.svelte.ts";
   import type { Interpolation } from "@darosh/twlch";
 
   let { open = $bindable(false) }: { open: boolean } = $props();
   let n = $state("1");
   let interpolation = $state<Interpolation>("smooth");
 
-  const pairs = $derived(twlchAnchors(store.dataset, interpolation).length);
+  const pairs = $derived(twlchAnchors(libDataset(store.dataset).dataset, interpolation, libDataset(store.dataset).generator).length);
   const total = $derived(pairs * Number(n));
 
   function apply() {
@@ -33,22 +32,17 @@
     </Dialog.Header>
     <div class="flex flex-col gap-3">
       <span class="text-sm">Scales between each pair</span>
-      <ToggleGroup.Root type="single" variant="outline" bind:value={n} class="w-full">
+      <ToggleGroup.Root type="single" variant="outline" bind:value={() => n, (v) => v && (n = v)} class="w-full">
         {#each ["0", "1", "2", "3"] as v}
           <ToggleGroup.Item value={v} class="flex-1">{v}</ToggleGroup.Item>
         {/each}
       </ToggleGroup.Root>
       <span class="text-sm">Interpolation across hue</span>
-      <Select.Root type="single" bind:value={interpolation}>
-        <Select.Trigger class="w-full">{interpolationLabel(interpolation)}</Select.Trigger>
-        <Select.Content>
-          <Select.Group>
-            {#each INTERPOLATIONS as it}
-              <Select.Item value={it.value} label={it.label}>{it.label}</Select.Item>
-            {/each}
-          </Select.Group>
-        </Select.Content>
-      </Select.Root>
+      <ToggleGroup.Root type="single" variant="outline" class="w-full" bind:value={() => interpolation, (v) => v && (interpolation = v as Interpolation)}>
+        {#each INTERPOLATIONS as it}
+          <ToggleGroup.Item value={it.value} class="flex-1">{it.label}</ToggleGroup.Item>
+        {/each}
+      </ToggleGroup.Root>
       <p class="text-sm text-muted-foreground">
         {#if total}{pairs} pairs × {n} = <b class="text-foreground">{total}</b> new scales ({pairs + total} in total){:else}Removes previously generated scales.{/if}
       </p>

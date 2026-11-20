@@ -1,6 +1,6 @@
 # twlch
 
-Tailwind scales interpolation. `twlch()` builds a 50–950 color scale from any color by interpolating Tailwind's hand-tuned OKLCH scales across the hue wheel, so a new scale has the same shape as a real Tailwind one.
+Tailwind scales interpolation. `twlch()` builds a 50–950 color scale from any color by interpolating Tailwind's hand-tuned OKLCH scales across the hue wheel, so a new scale has the same shape as a real Tailwind one. The scales can also be computed from fitted functions of shade and hue (`fourier`, `epicycles`).
 
 **Demo:** https://darosh.github.io/twlch/
 
@@ -29,20 +29,57 @@ Any color [colorjs.io](https://colorjs.io) can parse works as input. The result 
 
 ### In the browser, without a bundler
 
-`dist/twlch.browser.*` bundles colorjs.io (about 38 kB gzipped) for CDNs and plain pages.
+The `<script>` build (`dist/browser/twlch.global.min.js`, about 10 kB gzipped) expects colorjs.io's own global build, which provides `Color`. The ES module build (`dist/browser/twlch.bundle.module.min.js`) bundles colorjs.io (about 38 kB gzipped).
 
 ```html
+<script src="https://colorjs.io/dist/color.global.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@darosh/twlch"></script>
 <script>
   twlch.twlch("#3b82f6").swatches.map((s) => s.hex);
 </script>
 
 <script type="module">
-  import { twlch } from "https://cdn.jsdelivr.net/npm/@darosh/twlch/dist/twlch.browser.js";
+  import { twlch } from "https://cdn.jsdelivr.net/npm/@darosh/twlch/dist/browser/twlch.bundle.module.min.js";
 </script>
 ```
 
+| file (in `dist/browser/`)              | colorjs.io bundled | size     | gzip     |
+| -------------------------------------- | ------------------ | -------- | -------- |
+| `twlch.global.min.js`                  | no                 | 11.68 kB | 5.38 kB  |
+| `twlch.bundle.module.min.js`           | yes                | 93.36 kB | 37.70 kB |
+| `twlch-fourier.global.min.js`          | no                 | 14.72 kB | 7.22 kB  |
+| `twlch-fourier.bundle.module.min.js`   | yes                | 96.42 kB | 39.51 kB |
+| `twlch-epicycles.global.min.js`        | no                 | 7.48 kB  | 3.77 kB  |
+| `twlch-epicycles.bundle.module.min.js` | yes                | 89.17 kB | 36.07 kB |
+
 With a bundler, keep using `import { twlch } from "@darosh/twlch"`; colorjs.io is then shared with your app.
+
+### Computed scales (`fourier`, `epicycles`)
+
+Instead of blending the 17 Tailwind families, the scale can be computed from a fitted model of the whole palette, a plain function of shade and hue. Pass `fourier: true` or `epicycles: true`:
+
+```ts
+import { twlch, twlchHue, epicyclesAt, fourierAt } from "@darosh/twlch";
+
+twlch("#3b82f6", { fourier: true });
+twlchHue(280, { epicycles: true });
+
+epicyclesAt(425, 280); // { l, c, h } in OKLCH: any shade 50–950, any hue
+fourierAt(425, 280);
+```
+
+|                   | numbers | mean ΔE | max ΔE | what it is                                                                                                                             |
+| ----------------- | ------- | ------- | ------ | -------------------------------------------------------------------------------------------------------------------------------------- |
+| `fourier: true`   | ~890    | 0.02    | 0.06   | Fourier series in hue (sums of cos/sin) whose coefficients are smooth functions of shade, plus a chroma bump and residuals             |
+| `epicycles: true` | ~210    | 0.9     | 2.6    | a few shade patterns, each carried around the hue wheel by a handful of rotating circles (epicycles); each pattern a function of shade |
+
+ΔE is the OKLab distance ×100 at the 17 Tailwind hues and the 11 shades. The Tailwind lightness is hand-tuned and too jagged for a short formula, so a smaller model costs visible error.
+
+Both are generated as plain code with shade as a real parameter: `fourierAt(shade, hue)` and `epicyclesAt(shade, hue)` take any shade from 50 to 950 and return `{ l, c, h }` (OKLCH). `fourierCurve(hue)` and `epicyclesCurve(hue)` return the 11 Tailwind shades. In a computed set, `result.shade(n)` for an in-between shade such as 550 reads the function directly (also after `mode: "match"`); with a non-zero `delta`, or in the interpolated sets, it runs PCHIP through the swatches.
+
+Refit with `pnpm fit:fourier` (`--digits` sets the written precision, default 4; `--shadeDeg` and `--shadeRidge` trade exactness at the 11 shades against smoothness between them) or `pnpm fit:epicycles` (a greedy search then a genetic algorithm choose the circles).
+
+`@darosh/twlch/fourier` and `@darosh/twlch/epicycles` are single-model entries with no Tailwind data tables; `dist/browser/twlch-fourier.global.min.js` (global `twlchFourier`) and `dist/browser/twlch-epicycles.global.min.js` (global `twlchEpicycles`) are their `<script>` builds. The `dist/browser/*` builds contain neither model.
 
 ### Custom shades
 
@@ -50,6 +87,7 @@ With a bundler, keep using `import { twlch } from "@darosh/twlch"`; colorjs.io i
 const scale = twlch("#3b82f6");
 
 // Any shade between 50 and 950, not only the eleven Tailwind has:
+// (a monotone cubic through the swatches; in `fourier` / `epicycles` sets, the fitted function itself)
 scale.shade(550).hex;
 scale.shade(425); // { shade: 425, l, c, h, hex }
 
@@ -137,7 +175,7 @@ vp run demo         # run the demo dev server
 vp test             # run the tests
 vp pack             # build the library into dist/
 vp run ready        # check + test + build library and demo
-vp run extract      # regenerate src/tailwind.generated.ts from the installed tailwindcss
+vp run extract      # regenerate src/data.generated.ts from the installed tailwindcss
 vp run loo          # leave-one-out validation of the interpolation
 vp run deploy       # build the demo and publish it to the gh-pages branch
 ```
