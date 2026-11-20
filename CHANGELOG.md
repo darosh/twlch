@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.3.0](../../releases/tag/v0.3.0) - 2026-11-20
+
+Changes since [v0.2.0](../../releases/tag/v0.2.0).
+
+### Library (`@darosh/twlch`)
+
+- changed the colour search to place a colour by its closest point anywhere on the scale curve (straight lines between the shade labels), searching hue and shade continuously, instead of snapping to the nearest shade label first. The matched hue no longer flips by several degrees for colours between two labels, and the models agree much better (e.g. `#E82E6C`, between pink and rose)
+- changed `anchorShade` to the shade label nearest to that closest point; `error` is still the distance at the anchor shade
+- added `result.curveError` (OKLab distance ×100 to the closest point on the curve) and `result.curveShade` (the shade of that point, in between the labels, e.g. 555)
+- added a round-trip test: a colour at shade 450 between pink and rose is found again on the curve by all three models
+
+### Demo app
+
+- added the distances to the scale editor readout: input hue, scale hue at the anchor shade, hue difference, scale hue (500), anchor distance and curve distance (with its shade in brackets), each with a tooltip
+
 ## [0.2.0](../../releases/tag/v0.2.0) - 2026-11-20
 
 Changes since [v0.1.0](../../releases/tag/v0.1.0).

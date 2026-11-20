@@ -19,6 +19,21 @@
   const def = $derived(store.selectedDef);
   const scale = $derived(store.selected);
 
+  const wrap180 = (a: number) => ((((a + 180) % 360) + 360) % 360) - 180;
+  const inputHue = $derived.by(() => {
+    if (def?.kind !== "color") return null;
+    try {
+      const h = new Color(def.color).to("oklch").h;
+      return h == null || Number.isNaN(h) ? 0 : h;
+    } catch {
+      return null;
+    }
+  });
+  const anchorHue = $derived(
+    scale?.result ? (scale.result.swatches.find((w) => w.shade === scale.result!.anchorShade)?.h ?? 0) : 0,
+  );
+  const hueDiff = $derived(wrap180((inputHue ?? 0) - anchorHue));
+
   // The hex field may hold half-typed text; only valid colours reach the store.
   let hexText = $state("");
   let lastId = "";
@@ -156,12 +171,26 @@
     </Field.FieldGroup>
 
     {#if scale.result}
+      {#snippet row(label: string, value: string, tip: string)}
+        <Tip label={tip}>
+          {#snippet children(tp)}
+            <dt class="cursor-help text-muted-foreground" {...tp}>{label}</dt>
+          {/snippet}
+        </Tip>
+        <dd>{value}</dd>
+      {/snippet}
       <dl class="tnum grid grid-cols-[auto_1fr] gap-x-3 gap-y-0.5 rounded-lg border p-3 text-xs">
-        <dt class="text-muted-foreground">hue</dt><dd>{scale.result.hue.toFixed(1)}°</dd>
+        {#if def.kind === "color" && inputHue !== null}
+          {@render row("input hue", `${inputHue.toFixed(1)}°`, "The OKLCH hue of the colour you entered.")}
+          {@render row("scale hue at anchor", `${anchorHue.toFixed(1)}°`, "The hue of the matched scale at the anchor shade, i.e. the hue of the swatch your colour was compared with. In match mode that swatch is bent onto your colour, so it equals the input hue.")}
+          {@render row("hue difference", `${hueDiff >= 0 ? "+" : ""}${hueDiff.toFixed(1)}°`, "Input hue minus the scale's hue at the anchor shade. Close to 0 means the fit kept your hue.")}
+        {/if}
+        {@render row(def.kind === "color" ? "scale hue (500)" : "hue", `${scale.result.hue.toFixed(1)}°`, "Position of the matched scale on the wheel, named by its shade-500 hue. Hue drifts with shade, so this differs from the hue at the anchor shade.")}
         {#if def.kind === "color"}
-          <dt class="text-muted-foreground">anchored at shade</dt><dd>{scale.result.anchorShade}</dd>
-          <dt class="text-muted-foreground">fit distance</dt><dd>{scale.result.error.toFixed(2)} ΔE</dd>
-          <dt class="text-muted-foreground">match δ</dt><dd>{(scale.result.matchDelta * 100).toFixed(0)}%</dd>
+          {@render row("anchored at shade", String(scale.result.anchorShade), "The shade of the matched scale that your colour is closest to (or the one you forced).")}
+          {@render row("anchor distance", `${scale.result.error.toFixed(2)} ΔE`, "How far your colour is from the matched scale at the anchor shade itself (the swatch it is compared with), in OKLab × 100.")}
+          {@render row("curve distance", `${scale.result.curveError.toFixed(2)} ΔE (${Math.round(scale.result.curveShade)})`, "How far your colour is from the closest point anywhere on the scale's curve (straight lines between the shades), in OKLab × 100, and, in brackets, the shade of that point. 0 means the colour touches the curve; below ~2 is hard to tell apart. This is what snap is really after.")}
+          {@render row("match δ", `${(scale.result.matchDelta * 100).toFixed(0)}%`, "In match mode: how much the scale's chroma was scaled at the anchor shade to pass through your colour. Always 0% in snap mode, where the scale is left unchanged.")}
         {/if}
       </dl>
     {/if}

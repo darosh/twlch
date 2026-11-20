@@ -54,6 +54,13 @@ export interface TwlchResult {
   /** OKLab distance (×100) between the input and the scale at the anchor shade. */
   error: number;
   /**
+   * OKLab distance (×100) between the input and the closest point anywhere on the scale's curve
+   * (straight lines between the shade labels). 0 means the colour touches the curve; never above `error`.
+   */
+  curveError: number;
+  /** The shade of that closest point on the curve, in between the labels (e.g. 525). */
+  curveShade: number;
+  /**
    * The colour at any shade from 50 to 950, including in-between ones such as 550. Computed sets
    * (`fourier`, `epicycles`) read it straight from their function (unless `delta` is set); the others
    * run PCHIP through the swatches.
@@ -133,22 +140,53 @@ export function createTwlch(
     return 100 * Math.hypot(p.l - q.l, pa - qa, pb - qb);
   };
 
-  /** Closest (hue, shade) on the model for a colour. */
+  /**
+   * Closest point to `input` on the curve through one scale's shades (straight lines between the
+   * labels, OKLab distance), sampled `steps` times per interval. `pos` is the position among the labels.
+   */
+  function nearest(input: Lch, s: Lch[], steps: number) {
+    let best = { d: Infinity, pos: 0 };
+    for (let k = 0; k < n - 1; k++) {
+      const p = s[k];
+      const q = s[k + 1];
+      const dh = wrap180(q.h - p.h);
+      for (let j = 0; j <= steps; j++) {
+        const t = j / steps;
+        const d = dist(input, {
+          l: p.l + (q.l - p.l) * t,
+          c: p.c + (q.c - p.c) * t,
+          h: p.h + dh * t,
+        });
+        if (d < best.d) best = { d, pos: k + t };
+      }
+    }
+    return best;
+  }
+
+  /**
+   * Closest (hue, shade) on the model for a colour: the point of any scale's curve nearest to it. With no
+   * forced `shade` the shade is searched continuously, so a colour between two labels is placed by its
+   * hue, lightness and chroma together rather than snapping to a label first. `d` is then the curve
+   * distance, `pos` the position among the labels (5.5 = between 500 and 600), and the anchor `i` the
+   * nearest label.
+   */
   function locate(input: Lch, shade?: number) {
     const only = shade === undefined ? -1 : shades.indexOf(shade);
     if (shade !== undefined && only < 0) throw new Error(`unknown shade ${shade}`);
-    let best = { a: 0, i: 0, d: Infinity };
-    const scan = (from: number, to: number, stepA: number) => {
+    let best = { a: 0, i: 0, d: Infinity, pos: 0 };
+    const scan = (from: number, to: number, stepA: number, steps: number) => {
       for (let a = from; a <= to; a += stepA) {
         const s = curve(wrap360(a));
-        for (let i = 0; i < n; i++) {
-          if (only >= 0 && i !== only) continue;
-          const d = dist(input, s[i]);
-          if (d < best.d) best = { a: wrap360(a), i, d };
+        if (only >= 0) {
+          const d = dist(input, s[only]);
+          if (d < best.d) best = { a: wrap360(a), i: only, d, pos: only };
+          continue;
         }
+        const r = nearest(input, s, steps);
+        if (r.d < best.d) best = { a: wrap360(a), i: 0, d: r.d, pos: r.pos };
       }
     };
-    scan(0, 359, 1);
+    scan(0, 359, 1, 10);
     // coarse 1° grid, then successively finer passes so an exact family colour lands on its own hue
     for (const [span, step] of [
       [1, 0.05],
@@ -156,7 +194,13 @@ export function createTwlch(
       [0.001, 0.00002],
     ]) {
       const c = best.a;
-      scan(c - span, c + span, step);
+      scan(c - span, c + span, step, 20);
+    }
+    if (only < 0) {
+      // settle the shade on a fine grid at the final hue
+      const r = nearest(input, curve(best.a), 400);
+      best = { ...best, d: Math.min(best.d, r.d), pos: r.pos };
+      best.i = Math.min(n - 1, Math.max(0, Math.round(best.pos)));
     }
     return best;
   }
@@ -201,6 +245,12 @@ export function createTwlch(
     };
   }
 
+  /** The shade label value at a fractional position among the 11 (5.5 → 550). */
+  function shadeAt(pos: number) {
+    const k = Math.min(n - 2, Math.max(0, Math.floor(pos)));
+    return shades[k] + (shades[k + 1] - shades[k]) * (pos - k);
+  }
+
   /** Position of a shade among the 11, as a fraction: piecewise linear between the labels (150 → 1.5). */
   function shadePos(shade: number) {
     let k = 0;
@@ -235,8 +285,9 @@ export function createTwlch(
 
   function run(input: Lch, opts: TwlchOptions = {}): TwlchResult {
     const { mode = "snap", delta = 0, shade } = opts;
-    const { a, i, d } = locate(input, shade);
+    const { a, i, d: curveD, pos } = locate(input, shade);
     const base = curve(a);
+    const d = dist(input, base[i]); // at the anchor label itself
 
     let out: Lch[];
     let matchDelta = 0;
@@ -264,6 +315,8 @@ export function createTwlch(
       anchorShade: shades[i],
       matchDelta,
       error: d,
+      curveError: curveD,
+      curveShade: shadeAt(pos),
       shade: functionReader(swatches, a, delta, bend),
     };
   }
@@ -278,6 +331,8 @@ export function createTwlch(
       anchorShade: shades[mid],
       matchDelta: 0,
       error: 0,
+      curveError: 0,
+      curveShade: shades[mid],
       shade: functionReader(swatches, a, delta),
     };
   }
