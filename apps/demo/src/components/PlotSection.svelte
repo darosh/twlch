@@ -57,12 +57,10 @@
 </script>
 
 <section id={kind === "2d" ? "curves" : "model"} class="flex flex-col gap-3 scroll-mt-16">
-  <div class="mb-2 flex flex-wrap items-end justify-between gap-3">
-    <div>
-      <h2 class="display text-2xl mb-4">{title}</h2>
-      <p class="text-sm text-muted-foreground">{blurb}</p>
-    </div>
-    <div class="flex flex-wrap items-center gap-4">
+  <div class="mb-2">
+    <div class="mb-4 flex items-center justify-between gap-x-4 gap-y-2">
+      <h2 class="display text-2xl">{title}</h2>
+      <div class="flex flex-wrap items-center justify-end gap-x-4 gap-y-2">
       <div class="flex items-center gap-2">
         <Label class="text-xs text-muted-foreground">space</Label>
         <Select.Root type="single" bind:value={store.space}>
@@ -86,7 +84,9 @@
           <Label for="guides" class="text-xs">guides</Label>
         </div>
       {/if}
+      </div>
     </div>
+    <p class="text-sm text-muted-foreground">{blurb}</p>
   </div>
   {#if gaps}
     <p class="text-xs text-muted-foreground" title="Coefficient of variation of the hue gaps between neighbouring Tailwind families">

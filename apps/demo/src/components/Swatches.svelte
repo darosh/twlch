@@ -1,12 +1,17 @@
 <script lang="ts">
   import { tailwind } from "@darosh/twlch";
   import * as ToggleGroup from "$lib/components/ui/toggle-group";
+  import { Switch } from "$lib/components/ui/switch";
+  import { Label } from "$lib/components/ui/label";
   import { copy } from "$lib/copy.ts";
   import { store, swatchValue } from "$lib/store.svelte.ts";
   import type { Scale } from "$lib/store.svelte.ts";
 
   // One tooltip for the whole grid: it glides between swatches and only fades out when the
   // pointer leaves the grid, so crossing the gaps never flashes it.
+  // Label each swatch with its shade number: black on 50-500, white on 600-950.
+  let contrast = $state(false);
+
   let tip = $state<{ x: number; y: number; scale: Scale; i: number } | null>(null);
   let visible = $state(false);
   let glide = $state(false);
@@ -30,15 +35,21 @@
 </script>
 
 <section id="swatches" class="flex flex-col gap-4 scroll-mt-16">
-  <div class="mb-2 flex flex-wrap items-end justify-between gap-3">
-    <div>
-      <h2 class="display text-2xl mb-4">Swatches</h2>
-      <p class="text-sm text-muted-foreground">Sorted by hue. Click a swatch to copy its value, a name to copy the whole scale, one color per line.</p>
+  <div class="mb-2">
+    <div class="mb-4 flex items-center justify-between gap-x-4 gap-y-2">
+      <h2 class="display text-2xl">Swatches</h2>
+      <div class="flex flex-wrap items-center justify-end gap-x-4 gap-y-2">
+      <div class="flex items-center gap-2">
+        <Switch id="contrast" bind:checked={contrast} />
+        <Label for="contrast" class="text-xs">contrast</Label>
+      </div>
+      <ToggleGroup.Root type="single" variant="outline" size="sm" bind:value={() => store.copyFormat, (v) => v && (store.copyFormat = v as "hex" | "oklch")} aria-label="Copy format">
+        <ToggleGroup.Item value="oklch">oklch</ToggleGroup.Item>
+        <ToggleGroup.Item value="hex">hex</ToggleGroup.Item>
+      </ToggleGroup.Root>
+      </div>
     </div>
-    <ToggleGroup.Root type="single" variant="outline" size="sm" bind:value={() => store.copyFormat, (v) => v && (store.copyFormat = v as "hex" | "oklch")} aria-label="Copy format">
-      <ToggleGroup.Item value="oklch">oklch</ToggleGroup.Item>
-      <ToggleGroup.Item value="hex">hex</ToggleGroup.Item>
-    </ToggleGroup.Root>
+    <p class="text-sm text-muted-foreground">Sorted by hue. Click a swatch to copy its value, a name to copy the whole scale, one color per line.</p>
   </div>
 
   <div class="flex flex-col gap-1" role="presentation" onpointerleave={hide}>
@@ -66,12 +77,13 @@
         <div class="grid gap-1" style="grid-template-columns: repeat(11, minmax(0, 36px))">
           {#each s.hex as hx, i}
             <button
-              class="aspect-square w-full rounded-[5px] ring-offset-background outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              class="tnum aspect-square w-full rounded-[5px] text-[10px] font-medium ring-offset-background outline-none focus-visible:ring-2 focus-visible:ring-ring"
               style:background={hx}
+              style:color={i < 6 ? "#000" : "#fff"}
               aria-label="{s.name} {tailwind.shades[i]} {hx}"
               onpointerenter={(e) => show(e, s, i)}
               onclick={() => copy(swatchValue(s, i, store.copyFormat))}
-            ></button>
+            >{#if contrast}{tailwind.shades[i]}{/if}</button>
           {/each}
         </div>
       </div>
