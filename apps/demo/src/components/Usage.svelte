@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { epicyclesAt, twlch, twlchAnchors, twlchHue } from "@darosh/twlch";
+  import { twlch, twlchAnchors, twlchHue } from "@darosh/twlch";
   import type { TwlchResult } from "@darosh/twlch";
   import Code from "./Code.svelte";
   import Output from "./Output.svelte";
