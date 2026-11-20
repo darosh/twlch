@@ -60,6 +60,8 @@ export interface TwlchResult {
   curveError: number;
   /** The shade of that closest point on the curve, in between the labels (e.g. 525). */
   curveShade: number;
+  /** The hue (degrees) of that closest point on the curve. */
+  curveHue: number;
   /**
    * The colour at any shade from 50 to 950, including in-between ones such as 550. Computed sets
    * (`fourier`, `epicycles`) read it straight from their function (unless `delta` is set); the others
@@ -245,6 +247,12 @@ export function createTwlch(
     };
   }
 
+  /** The hue of a scale at a fractional position among the 11 shades. */
+  function hueAtPos(s: Lch[], pos: number) {
+    const k = Math.min(n - 2, Math.max(0, Math.floor(pos)));
+    return wrap360(s[k].h + wrap180(s[k + 1].h - s[k].h) * (pos - k));
+  }
+
   /** The shade label value at a fractional position among the 11 (5.5 → 550). */
   function shadeAt(pos: number) {
     const k = Math.min(n - 2, Math.max(0, Math.floor(pos)));
@@ -317,6 +325,7 @@ export function createTwlch(
       error: d,
       curveError: curveD,
       curveShade: shadeAt(pos),
+      curveHue: hueAtPos(base, pos),
       shade: functionReader(swatches, a, delta, bend),
     };
   }
@@ -333,6 +342,7 @@ export function createTwlch(
       error: 0,
       curveError: 0,
       curveShade: shades[mid],
+      curveHue: wrap360(curve(a)[mid].h),
       shade: functionReader(swatches, a, delta),
     };
   }

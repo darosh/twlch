@@ -18,7 +18,7 @@ function toRow(d: CustomSpec): Row {
     d.name,
   ];
   return d.kind === "color"
-    ? [...head, d.color.replace(/^#/, ""), d.mode === "match" ? 1 : 0, d.delta, d.shade]
+    ? [...head, d.color.replace(/^#/, ""), d.mode === "match" ? 1 : 0, d.delta, d.shade, d.hueNudge]
     : [...head, d.hue, d.delta, d.bulk ? 1 : 0];
 }
 
@@ -39,6 +39,7 @@ function fromRow(r: Row): CustomSpec {
       mode: r[6] === 1 ? "match" : "snap",
       delta: Number(r[7]),
       shade: r[8] === null ? null : Number(r[8]),
+      hueNudge: r[9] === undefined || r[9] === null ? 0 : Number(r[9]),
     };
   }
   return { ...base, kind: "hue", hue: Number(r[5]), delta: Number(r[6]), bulk: r[7] === 1 };

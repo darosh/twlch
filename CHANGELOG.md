@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.3.1](../../releases/tag/v0.3.1) - 2026-11-20
+
+Changes since [v0.3.0](../../releases/tag/v0.3.0).
+
+### Library (`@darosh/twlch`)
+
+- added `result.curveHue`: the hue (degrees) of the closest point on the scale curve, next to `curveError` and `curveShade`
+
+### Demo app
+
+- added a "Hue nudge" slider (±10°) for colour-based scales: turns the colour's hue before fitting, as a manual compensation; saved in share links. The hue differences are still measured from the original colour
+- added "curve hue" to the editor readout, and the hue difference (input hue minus scale hue) in brackets after the scale hue at the anchor, the curve hue and the scale hue (500); removed the separate "hue difference" row
+- added double-click to reset the Hue nudge and Chroma δ sliders to 0
+
 ## [0.3.0](../../releases/tag/v0.3.0) - 2026-11-20
 
 Changes since [v0.2.0](../../releases/tag/v0.2.0).

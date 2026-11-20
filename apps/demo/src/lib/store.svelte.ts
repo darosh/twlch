@@ -26,6 +26,14 @@ const datasetOpts = (d: Dataset) => {
       : { dataset };
 };
 
+/** The colour with its OKLCH hue turned by `deg` degrees (unclipped, so nothing is gamut-rounded). */
+export function nudged(color: string, deg: number): string {
+  if (!deg) return color;
+  const [l, c, h] = new Color(color).to("oklch").coords;
+  const hue = ((((h == null || Number.isNaN(h) ? 0 : h) + deg) % 360) + 360) % 360;
+  return `oklch(${l} ${c} ${hue})`;
+}
+
 type DefBase = { dataset: Dataset; interpolation: Interpolation };
 export type CustomDef = DefBase &
   (
@@ -38,6 +46,8 @@ export type CustomDef = DefBase &
         mode: "snap" | "match";
         delta: number;
         shade: number | null;
+        /** Degrees added to the colour's OKLCH hue before it is fitted (manual compensation). */
+        hueNudge: number;
       }
     | {
         id: string;
@@ -192,7 +202,11 @@ class Store {
         };
         const r =
           def.kind === "color"
-            ? twlch(def.color, { ...base, mode: def.mode, shade: def.shade ?? undefined })
+            ? twlch(nudged(def.color, def.hueNudge), {
+                ...base,
+                mode: def.mode,
+                shade: def.shade ?? undefined,
+              })
             : twlchHue(def.hue, base);
         const scale = fromResult(def, r, this.dataset);
         seen.set(def.id, { key, scale });
@@ -272,6 +286,7 @@ class Store {
       mode: "snap",
       delta: 0,
       shade: null,
+      hueNudge: 0,
     };
     this.custom = [...this.custom, def];
     this.selectedId = def.id;

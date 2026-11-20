@@ -32,7 +32,11 @@
   const anchorHue = $derived(
     scale?.result ? (scale.result.swatches.find((w) => w.shade === scale.result!.anchorShade)?.h ?? 0) : 0,
   );
-  const hueDiff = $derived(wrap180((inputHue ?? 0) - anchorHue));
+  /** "123.4° (+1.2°)": a hue with the input hue's difference from it in brackets. */
+  const withDiff = (h: number) => {
+    const d = wrap180((inputHue ?? 0) - h);
+    return `${h.toFixed(1)}° (${d >= 0 ? "+" : ""}${d.toFixed(1)}°)`;
+  };
 
   // The hex field may hold half-typed text; only valid colours reach the store.
   let hexText = $state("");
@@ -125,6 +129,17 @@
         </Field.Field>
 
         <Field.Field>
+          <div class="flex items-baseline justify-between">
+            <Field.FieldLabel>Hue nudge</Field.FieldLabel>
+            <button class="tnum text-xs text-muted-foreground hover:text-foreground" onclick={() => store.update(def.id, { hueNudge: 0 })} title="Reset">
+              {def.hueNudge >= 0 ? "+" : ""}{def.hueNudge.toFixed(1)}°
+            </button>
+          </div>
+          <Slider type="single" min={-10} max={10} step={0.1} value={def.hueNudge} onValueChange={(v) => store.update(def.id, { hueNudge: v })} ondblclick={() => store.update(def.id, { hueNudge: 0 })} />
+          <Field.FieldDescription>Turns your colour's hue by this much before fitting, to compensate by hand. The hue differences below are still measured from your original colour. Double-click to reset.</Field.FieldDescription>
+        </Field.Field>
+
+        <Field.Field>
           <Field.FieldLabel>Color sits at shade</Field.FieldLabel>
           <Select.Root type="single" value={shadeLabel(def.shade)} onValueChange={(v) => store.update(def.id, { shade: v === "auto" ? null : Number(v) })}>
             <Select.Trigger size="sm" class="w-full">{shadeLabel(def.shade)}</Select.Trigger>
@@ -165,8 +180,8 @@
             {def.delta >= 0 ? "+" : ""}{(def.delta * 100).toFixed(0)}%
           </button>
         </div>
-        <Slider type="single" min={-0.6} max={0.6} step={0.01} value={def.delta} onValueChange={(v) => store.update(def.id, { delta: v })} />
-        <Field.FieldDescription>Chroma relative to the matched curve. 0 is an exact match.</Field.FieldDescription>
+        <Slider type="single" min={-0.6} max={0.6} step={0.01} value={def.delta} onValueChange={(v) => store.update(def.id, { delta: v })} ondblclick={() => store.update(def.id, { delta: 0 })} />
+        <Field.FieldDescription>Chroma relative to the matched curve. 0 is an exact match. Double-click the slider to reset.</Field.FieldDescription>
       </Field.Field>
     </Field.FieldGroup>
 
@@ -182,10 +197,10 @@
       <dl class="tnum grid grid-cols-[auto_1fr] gap-x-3 gap-y-0.5 rounded-lg border p-3 text-xs">
         {#if def.kind === "color" && inputHue !== null}
           {@render row("input hue", `${inputHue.toFixed(1)}°`, "The OKLCH hue of the colour you entered.")}
-          {@render row("scale hue at anchor", `${anchorHue.toFixed(1)}°`, "The hue of the matched scale at the anchor shade, i.e. the hue of the swatch your colour was compared with. In match mode that swatch is bent onto your colour, so it equals the input hue.")}
-          {@render row("hue difference", `${hueDiff >= 0 ? "+" : ""}${hueDiff.toFixed(1)}°`, "Input hue minus the scale's hue at the anchor shade. Close to 0 means the fit kept your hue.")}
+          {@render row("scale hue at anchor", withDiff(anchorHue), "The hue of the matched scale at the anchor shade, i.e. the swatch your colour was compared with. In brackets: the input hue minus this. In match mode that swatch is bent onto your colour, so the difference is 0.")}
+          {@render row("curve hue", withDiff(scale.result.curveHue), "The hue of the closest point anywhere on the scale's curve. In brackets: the input hue minus this, so close to 0 means the fit kept your hue.")}
         {/if}
-        {@render row(def.kind === "color" ? "scale hue (500)" : "hue", `${scale.result.hue.toFixed(1)}°`, "Position of the matched scale on the wheel, named by its shade-500 hue. Hue drifts with shade, so this differs from the hue at the anchor shade.")}
+          {@render row(def.kind === "color" ? "scale hue (500)" : "hue", def.kind === "color" && inputHue !== null ? withDiff(scale.result.hue) : `${scale.result.hue.toFixed(1)}°`, "Position of the matched scale on the wheel, named by its shade-500 hue. Hue drifts with shade, so this differs from the hue at the anchor shade." + (def.kind === "color" ? " In brackets: the input hue minus this." : ""))}
         {#if def.kind === "color"}
           {@render row("anchored at shade", String(scale.result.anchorShade), "The shade of the matched scale that your colour is closest to (or the one you forced).")}
           {@render row("anchor distance", `${scale.result.error.toFixed(2)} ΔE`, "How far your colour is from the matched scale at the anchor shade itself (the swatch it is compared with), in OKLab × 100.")}
