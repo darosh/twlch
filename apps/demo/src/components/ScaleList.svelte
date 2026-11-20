@@ -59,7 +59,7 @@
 <!--    <Label class="text-xs text-muted-foreground">dataset</Label>-->
     <ToggleGroup.Root type="single" variant="outline" size="sm" class="w-full" bind:value={store.dataset}>
       {#each DATASETS as d}
-        <ToggleGroup.Item value={d} class="flex-1">{d}</ToggleGroup.Item>
+        <ToggleGroup.Item value={d} class="flex-0.1">{d}</ToggleGroup.Item>
       {/each}
     </ToggleGroup.Root>
   </div>
