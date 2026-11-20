@@ -3,7 +3,7 @@ import { OrbitCamera } from "@pixi/3d/extras";
 import { Application, Point, Text } from "pixi.js";
 import { pchip } from "@darosh/twlch";
 import { fmt, niceMax } from "./color.ts";
-import { denseOf, sampleCurve, seriesOf } from "./plot.ts";
+import { C_MIN, denseOf, sampleCurve, seriesOf } from "./plot.ts";
 import type { PlotOptions } from "./plot.ts";
 
 const BG = 0x0f1115;
@@ -199,7 +199,7 @@ export class Plot3D {
 
     const fams = this.opts.families;
     const maxC = Math.max(1e-6, ...fams.flatMap((f) => f.c));
-    const niceC = niceMax(maxC);
+    const niceC = Math.max(C_MIN, niceMax(maxC)); // fixed floor so the chroma scale stays comparable
     this.scale = RADIUS / niceC;
 
     // axes: L axis, hue spokes, chroma rings on the L=0 floor

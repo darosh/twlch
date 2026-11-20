@@ -42,6 +42,9 @@ function unwrap(h: number[]): number[] {
 }
 
 const SAMPLES = 12;
+const X_MAX = 1000;
+/** Smallest chroma axis maximum (OKLCH units), so datasets are comparable at the same scale. */
+export const C_MIN = 0.4;
 
 /** Unwrapped hue for h, raw values otherwise. */
 export function seriesOf(f: Family, key: Channel): number[] {
@@ -196,7 +199,7 @@ export class CurvePlot {
     const ph = (height - MARGIN.top - MARGIN.bottom - MARGIN.gap * (n - 1)) / n;
     const fams = this.opts.families;
     const maxC = Math.max(1e-6, ...fams.flatMap((f) => f.c));
-    const niceC = niceMax(maxC);
+    const niceC = Math.max(C_MIN, niceMax(maxC)); // fixed floor so the chroma scale stays comparable
     const hs = fams.flatMap((f) => seriesOf(f, "h"));
     const hMin = Math.min(0, Math.floor(Math.min(...hs) / 30) * 30);
     const hMax = Math.max(360, Math.ceil(Math.max(...hs) / 30) * 30);
@@ -216,8 +219,18 @@ export class CurvePlot {
     });
   }
 
+  /** Shade value (0…1000 axis) at a fractional shade index; linear between neighbouring shades. */
+  private shadeAt(i: number) {
+    const sh = this.opts.shades;
+    const lo = Math.min(Math.max(Math.floor(i), 0), sh.length - 2);
+    return sh[lo] + (i - lo) * (sh[lo + 1] - sh[lo]);
+  }
+  /** x of a fractional shade index: the axis is proportional to the shade value, 0 to 1000. */
   private px(p: Panel, i: number) {
-    return p.x0 + ((p.x1 - p.x0) * i) / (this.opts.shades.length - 1);
+    return this.pxShade(p, this.shadeAt(i));
+  }
+  private pxShade(p: Panel, shade: number) {
+    return p.x0 + ((p.x1 - p.x0) * shade) / X_MAX;
   }
   private py(p: Panel, v: number) {
     return p.y1 - ((v - p.min) / (p.max - p.min)) * (p.y1 - p.y0);
@@ -250,8 +263,8 @@ export class CurvePlot {
         txt.position.set(p.x0 - 6, y);
         this.labels.addChild(txt);
       }
-      this.opts.shades.forEach((s, i) => {
-        const x = this.px(p, i);
+      this.opts.shades.forEach((s) => {
+        const x = this.pxShade(p, s);
         grid.moveTo(x, p.y0).lineTo(x, p.y1).stroke({ width: 1, color: 0x1c222d });
         if (p === last) {
           const t = new Text({ text: String(s), style: labelStyle });
@@ -351,8 +364,11 @@ export class CurvePlot {
       this.readout.visible = false;
       return;
     }
-    const n = this.opts.shades.length;
-    const k = Math.min(n - 1, Math.max(0, Math.round(((cur.x - p.x0) / (p.x1 - p.x0)) * (n - 1))));
+    const at = ((cur.x - p.x0) / (p.x1 - p.x0)) * X_MAX;
+    let k = 0;
+    this.opts.shades.forEach((s, i) => {
+      if (Math.abs(s - at) < Math.abs(this.opts.shades[k] - at)) k = i;
+    });
     const key = `${f.name}|${k}|${this.opts.space.id}`;
     if (key !== this.readoutKey) {
       this.readoutKey = key;
