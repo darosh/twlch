@@ -2,12 +2,14 @@ import { pchip } from "@darosh/twlch";
 import { Application, Container, Graphics, Text } from "pixi.js";
 import type { TextStyleOptions } from "pixi.js";
 import type { Family } from "@darosh/twlch";
-import { fmt, niceMax } from "./color.ts";
+import { fmt, labelContrast, niceMax } from "./color.ts";
 import { hexOfNum, PALETTES } from "./palette.ts";
 import type { Theme } from "./palette.ts";
 import type { PlotFamily, SpaceInfo } from "./spaces.ts";
 
 export type Channel = "l" | "c" | "h";
+/** The plot panels: the three channels plus the WCAG contrast of each swatch against its label colour. */
+type PanelKey = Channel | "k";
 
 export type PlotOptions = {
   theme: Theme;
@@ -31,7 +33,7 @@ export type PlotOptions = {
   ring: PlotFamily[] | null;
 };
 
-const CHANNELS: { key: Channel }[] = [{ key: "l" }, { key: "c" }, { key: "h" }];
+const CHANNELS: { key: PanelKey }[] = [{ key: "l" }, { key: "c" }, { key: "h" }, { key: "k" }];
 const MARGIN = { left: 52, right: 20, top: 22, bottom: 26, gap: 30 };
 
 /** Unwrap a hue series so consecutive values never jump by more than 180°. */
@@ -46,6 +48,10 @@ function unwrap(h: number[]): number[] {
   return out;
 }
 
+/** Black on white, the highest possible WCAG contrast. */
+const MAX_CONTRAST = 21;
+/** WCAG thresholds drawn on the contrast axis: UI/large text AA, text AA, text AAA. */
+const WCAG_TICKS = [3, 4.5, 7];
 const SAMPLES = 12;
 const X_MAX = 1000;
 /** Smallest chroma axis maximum (OKLCH units), so datasets are comparable at the same scale. */
@@ -54,6 +60,16 @@ export const C_MIN = 0.4;
 /** Unwrapped hue for h, raw values otherwise. */
 export function seriesOf(f: Family, key: Channel): number[] {
   return key === "h" ? unwrap(f.h) : f[key];
+}
+
+/** WCAG contrast of each swatch against its label colour (see labelContrast). */
+export function contrastSeries(f: PlotFamily): number[] {
+  return f.hex.map((hx, i) => labelContrast(hx, i));
+}
+
+/** The values plotted in a panel for a family. */
+function panelSeries(f: PlotFamily, key: PanelKey): number[] {
+  return key === "k" ? contrastSeries(f) : seriesOf(f, key);
 }
 
 /** The densely sampled series of a family that is an exact function (see PlotFamily.dense), if any. */
@@ -78,7 +94,7 @@ export function sampleCurve(
 }
 
 type Panel = {
-  key: Channel;
+  key: PanelKey;
   x0: number;
   x1: number;
   y0: number;
@@ -215,7 +231,13 @@ export class CurvePlot {
     this.panels = CHANNELS.map((ch, i) => {
       const y0 = MARGIN.top + i * (ph + MARGIN.gap);
       const range =
-        ch.key === "l" ? [0, this.opts.space.lMax] : ch.key === "c" ? [0, niceC] : [hMin, hMax];
+        ch.key === "l"
+          ? [0, this.opts.space.lMax]
+          : ch.key === "c"
+            ? [0, niceC]
+            : ch.key === "h"
+              ? [hMin, hMax]
+              : [1, MAX_CONTRAST];
       return {
         key: ch.key,
         x0: MARGIN.left,
@@ -265,11 +287,21 @@ export class CurvePlot {
     for (const p of this.panels) {
       grid.rect(p.x0, p.y0, p.x1 - p.x0, p.y1 - p.y0).fill(pal.panel);
       const ticks = 4;
-      for (let t = 0; t <= ticks; t++) {
-        const v = p.min + ((p.max - p.min) * t) / ticks;
+      const vals =
+        p.key === "k"
+          ? [1, ...WCAG_TICKS, MAX_CONTRAST]
+          : Array.from({ length: ticks + 1 }, (_, t) => p.min + ((p.max - p.min) * t) / ticks);
+      for (const v of vals) {
         const y = this.py(p, v);
-        grid.moveTo(p.x0, y).lineTo(p.x1, y).stroke({ width: 1, color: pal.gridH });
-        const txt = new Text({ text: fmt(v, p.max - p.min), style: labelStyle });
+        const wcag = p.key === "k" && WCAG_TICKS.includes(v);
+        grid
+          .moveTo(p.x0, y)
+          .lineTo(p.x1, y)
+          .stroke({ width: 1, color: wcag ? pal.threshold : pal.gridH });
+        const txt = new Text({
+          text: p.key === "k" ? `${v}:1` : fmt(v, p.max - p.min),
+          style: wcag ? { ...labelStyle, fill: pal.label } : labelStyle,
+        });
         txt.anchor.set(1, 0.5);
         txt.position.set(p.x0 - 6, y);
         this.labels.addChild(txt);
@@ -285,7 +317,10 @@ export class CurvePlot {
         }
       });
       const title = new Text({
-        text: this.opts.space.titles[p.key],
+        text:
+          p.key === "k"
+            ? "Contrast (WCAG: 3 UI/large AA · 4.5 text AA · 7 text AAA; black on 50–500, white on 600–950)"
+            : this.opts.space.titles[p.key],
         style: { ...labelStyle, fill: pal.label },
       });
       title.position.set(p.x0, p.y0 - 17);
@@ -310,10 +345,10 @@ export class CurvePlot {
       const g = this.pool[i];
       const lines: number[][] = [];
       for (const p of this.panels) {
-        const vals = seriesOf(f, p.key);
+        const vals = panelSeries(f, p.key);
         const poly: number[] = [];
-        sampleCurve(vals, this.opts.smooth, denseOf(f, p.key)).forEach(({ t, v }) =>
-          poly.push(this.px(p, t), this.py(p, v)),
+        sampleCurve(vals, this.opts.smooth, p.key === "k" ? undefined : denseOf(f, p.key)).forEach(
+          ({ t, v }) => poly.push(this.px(p, t), this.py(p, v)),
         );
         lines.push(poly);
         g.poly(poly, false).stroke({ width: 1.5, color, join: "round" });
@@ -359,7 +394,7 @@ export class CurvePlot {
       this.panels.forEach((p, pi) => {
         this.hl.poly(e.lines[pi], false).stroke({ width: 3, color: e.color, join: "round" });
         const f = this.opts.families.find((x) => x.name === e.name)!;
-        seriesOf(f, p.key).forEach((v, i) =>
+        panelSeries(f, p.key).forEach((v, i) =>
           this.hl.circle(this.px(p, i), this.py(p, v), 3.5).fill(e.color),
         );
       });
@@ -384,7 +419,7 @@ export class CurvePlot {
     if (key !== this.readoutKey) {
       this.readoutKey = key;
       const s = this.opts.space;
-      this.readoutText.text = `${f.name} ${this.opts.shades[k]}\n${s.short.l} ${fmt(f.l[k], this.panels[0].max)}  ${s.short.c} ${fmt(f.c[k], this.panels[1].max)}  ${s.short.h} ${f.h[k].toFixed(1)}`;
+      this.readoutText.text = `${f.name} ${this.opts.shades[k]}\n${s.short.l} ${fmt(f.l[k], this.panels[0].max)}  ${s.short.c} ${fmt(f.c[k], this.panels[1].max)}  ${s.short.h} ${f.h[k].toFixed(1)}  contrast ${contrastSeries(f)[k].toFixed(2)}`;
       this.readoutText.position.set(6, 5);
       this.readoutBg
         .clear()

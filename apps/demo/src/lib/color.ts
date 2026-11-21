@@ -22,3 +22,14 @@ export function fmt(v: number, range: number): string {
   const digits = range >= 50 ? 0 : range >= 5 ? 1 : range >= 0.5 ? 2 : 3;
   return v.toFixed(digits);
 }
+
+function luminance(hex: number): number {
+  const lin = (v: number) => ((v /= 255) <= 0.04045 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4);
+  return 0.2126 * lin((hex >> 16) & 255) + 0.7152 * lin((hex >> 8) & 255) + 0.0722 * lin(hex & 255);
+}
+
+/** WCAG contrast of a swatch (0xRRGGBB) against its label colour: black on shades 50–500 (index < 6), white on 600–950. */
+export function labelContrast(hex: number, shadeIndex: number): number {
+  const y = luminance(hex);
+  return shadeIndex < 6 ? (y + 0.05) / 0.05 : 1.05 / (y + 0.05);
+}

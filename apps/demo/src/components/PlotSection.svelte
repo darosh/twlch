@@ -96,7 +96,7 @@
   {/if}
   <div
     bind:this={host}
-    class="relative overflow-hidden rounded-xl border bg-[#fafafa] dark:bg-[#0f1115] {kind === '2d' ? 'h-[560px]' : 'h-[600px]'}"
+    class="relative overflow-hidden rounded-xl border bg-[#fafafa] dark:bg-[#0f1115] {kind === '2d' ? 'h-[672px]' : 'h-[600px]'}"
   ></div>
   {#if kind === "3d"}
     <p class="text-xs text-muted-foreground">Drag to orbit · hold <kbd class="rounded border px-1 font-mono text-[11px]">Shift</kbd> and scroll to zoom · right-drag to pan</p>

@@ -3,6 +3,7 @@
   import * as ToggleGroup from "$lib/components/ui/toggle-group";
   import { Switch } from "$lib/components/ui/switch";
   import { Label } from "$lib/components/ui/label";
+  import { labelContrast } from "$lib/color.ts";
   import { copy } from "$lib/copy.ts";
   import { store, swatchValue } from "$lib/store.svelte.ts";
   import type { Scale } from "$lib/store.svelte.ts";
@@ -11,6 +12,8 @@
   // pointer leaves the grid, so crossing the gaps never flashes it.
   // Label each swatch with its shade number: black on 50-500, white on 600-950.
   let contrast = $state(false);
+  // Swatches whose label contrast falls below this get a warning icon.
+  let threshold = $state("4.5");
 
   let tip = $state<{ x: number; y: number; scale: Scale; i: number } | null>(null);
   let visible = $state(false);
@@ -43,6 +46,11 @@
         <Switch id="contrast" bind:checked={contrast} />
         <Label for="contrast" class="text-xs">contrast</Label>
       </div>
+      <ToggleGroup.Root type="single" variant="outline" size="sm" bind:value={() => threshold, (v) => v && (threshold = v)} aria-label="Contrast warning threshold" disabled={!contrast}>
+        <ToggleGroup.Item value="3">3</ToggleGroup.Item>
+        <ToggleGroup.Item value="4.5">4.5</ToggleGroup.Item>
+        <ToggleGroup.Item value="7">7</ToggleGroup.Item>
+      </ToggleGroup.Root>
       <ToggleGroup.Root type="single" variant="outline" size="sm" bind:value={() => store.copyFormat, (v) => v && (store.copyFormat = v as "hex" | "oklch")} aria-label="Copy format">
         <ToggleGroup.Item value="oklch">oklch</ToggleGroup.Item>
         <ToggleGroup.Item value="hex">hex</ToggleGroup.Item>
@@ -77,13 +85,13 @@
         <div class="grid gap-1" style="grid-template-columns: repeat(11, minmax(0, 36px))">
           {#each s.hex as hx, i}
             <button
-              class="tnum aspect-square w-full rounded-[5px] text-[10px] font-medium ring-offset-background outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              class="tnum relative aspect-square w-full rounded-[5px] text-[10px] font-medium ring-offset-background outline-none focus-visible:ring-2 focus-visible:ring-ring"
               style:background={hx}
               style:color={i < 6 ? "#000" : "#fff"}
               aria-label="{s.name} {tailwind.shades[i]} {hx}"
               onpointerenter={(e) => show(e, s, i)}
               onclick={() => copy(swatchValue(s, i, store.copyFormat))}
-            >{#if contrast}{tailwind.shades[i]}{/if}</button>
+            >{#if contrast}{tailwind.shades[i]}{#if labelContrast(parseInt(hx.slice(1), 16), i) < Number(threshold)}<svg class="absolute top-[1px] right-[2px] size-[1.12em]" viewBox="0 0 24 24" stroke="none" fill="currentColor" stroke-width="0"  aria-hidden="true"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/></svg>{/if}{/if}</button>
           {/each}
         </div>
       </div>
